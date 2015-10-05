@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:cxf="http://cxf.apache.org/core" xmlns:jaxrs="http://cxf.apache.org/jaxrs"
+	xmlns:security="http://www.springframework.org/schema/security"
+	xmlns:task="http://www.springframework.org/schema/task" xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://cxf.apache.org/core http://cxf.apache.org/schemas/core.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.2.xsd
+		http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security-3.2.xsd
+		http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-3.2.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.2.xsd
+		http://cxf.apache.org/jaxrs http://cxf.apache.org/schemas/jaxrs.xsd
+		http://cxf.apache.org/configuration/security http://cxf.apache.org/schemas/configuration/security.xsd
+		">
+	<import resource="classpath:META-INF/cxf/cxf.xml" />
+	<context:annotation-config />
+	<context:component-scan base-package="manchester.synbiochem.datacapture" />
+	<context:property-placeholder location="WEB-INF/capture-servlet.properties" />
+	<!-- <import resource="cas.xml" /> -->
+
+	<jaxrs:server id="restserv" address="/" beanNames="app">
+<jaxrs:providers>
+    <bean class="org.apache.cxf.jaxrs.provider.json.JSONProvider">
+        <property name="dropRootElement" value="true" />
+        <property name="supportUnwrapped" value="true" />
+    </bean>
+</jaxrs:providers>
+	</jaxrs:server>
+
+	<task:executor id="executor" />
+
+	<bean name="app" class="manchester.synbiochem.datacapture.Application" />
+	<bean name="lister" class="manchester.synbiochem.datacapture.DirectoryLister" />
+	<bean name="seek" class="manchester.synbiochem.datacapture.SeekConnector" />
+	<bean name="taskStore" class="manchester.synbiochem.datacapture.TaskStore" />
+</beans>

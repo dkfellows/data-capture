@@ -1,0 +1,84 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>SynBioChem Data Archiver Service</title>
+<link id="apiUsers" href="api/users">
+<link id="apiAssays" href="api/assays">
+<link id="apiDirs" href="api/directories">
+<link id="apiTasks" href="api/tasks">
+  <script src="//code.jquery.com/jquery-1.10.2.js"></script>
+  <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+  <link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+<script type="text/javascript" src="capture.js"></script>
+</head>
+<style>
+.overflow {
+	height: 200px;
+}
+
+body {
+	font-size: 16px;
+}
+
+.ui-widget {
+	font-size: 80%;
+}
+
+.ui-progressbar {
+	position: relative;
+}
+
+.progress-label {
+	position: absolute;
+	display: flex;
+	width: 100%;
+	height: 100%;
+	justify-content: center;
+	flex-direction: column;
+	text-align: center;
+	text-shadow: 1px 1px 0 #fff;
+}
+</style>
+<body>
+	<h1>SynBioChem Data Archiver Service</h1>
+	<p>
+		This is my <a href="api">test</a>.
+	</p>
+	<div id="new">
+	<h2>New archive task</h2>
+	<form id="newTask">
+	Users:
+	<select id="users" style="width:200px">
+		<option selected>Choose...</option>
+	</select>
+	<br>
+	Assays:
+	<select id="assays" style="width:200px">
+		<option selected>Choose...</option>
+	</select>
+	<br>
+	Directories:
+	<select id="dirs" multiple style="width:200px">
+		<option selected>Choose...</option>
+	</select>
+	<br>
+	<button id="submit">Create New Task</button>
+	</form>
+	</div>
+	<div id="current">
+	<h2>Current archiving tasks</h2>
+	<table id="tasks" style="width:100%">
+		<tr id="tasksHeading">
+		<th>ID
+		<th>Submitter
+		<th>Assay
+		<th>Started
+		<th>Progress
+		<th>Finished
+		<th>
+		</tr>
+	</table>
+	</div>
+</body>
+</html>

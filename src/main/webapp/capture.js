@@ -29,7 +29,11 @@ function getJSON(u, done, errors) {
 	});
 }
 /** How to send a POST of JSON asynchronously. */
-function postJSON(u, object, done) {
+function postJSON(u, object, done, errors) {
+	if (errors === undefined)
+		errors = function(jqXHR, textStatus, errorThrown) {
+			alert(errorThrown);
+		};
 	$.ajax({
 		type : "POST",
 		url : u,
@@ -39,9 +43,7 @@ function postJSON(u, object, done) {
 		accept : "application/json",
 		data : JSON.stringify(object),
 		success : done,
-		error : function(jqXHR, textStatus, errorThrown) {
-			alert(errorThrown);
-		}
+		error : errors
 	});
 }
 /** Generate a human-readable description of a date */
@@ -173,6 +175,11 @@ function addTaskRow(table, task) {
 	setProgress(progress, task.progress);
 	cell().append(progress);
 	datecell(task["end-time"]).attr("id", "end_" + task.id);
+	var asset = task["created-asset"];
+	linkcell({
+		url : asset === undefined ? "" : asset,
+		name : asset === undefined ? "" : "Asset"
+	}).attr("id", "asset_" + id);
 	cell().append(delbutn(task.id).click(function() {
 		var u = $("#apiTasks")[0].href + "/" + task.id;
 		$.ajax({
@@ -207,6 +214,9 @@ function updateProgress() {
 		}, function(a) {
 			$("#" + id).remove();
 		});
+		var asset = task["created-asset"];
+		if (asset !== undefined)
+			$("#asset_" + id + " a").attr("href", asset).text("Asset");
 	}
 	return $(".taskrow").each(function() {
 		updateRow($(this).attr("id"));
@@ -215,8 +225,6 @@ function updateProgress() {
 
 /** Start everything going on page load */
 $(function() {
-	var users = [], assays = [], dirs = [], tasks = [];
-
 	var theUser, theAssay, theDir;
 
 	$("#users").selectmenu({
@@ -262,8 +270,11 @@ $(function() {
 	});
 	getJSON($("#apiDirs")[0].href, function(data) {
 		dejson(data.directory).forEach(function(item) {
-			var s = item.name.replace(/^.*\//, "");
-			addOption($("#dirs"), item.id, item.name, s);
+			var s = item.name.split("/").slice(-2);
+			var instrument = s[0];
+			var output = s[1];
+			addOption($("#dirs"), item.id, item.name, "Instrument: "
+					+ instrument + " Dir: " + output);
 		});
 	});
 	getJSON($("#apiTasks")[0].href, function(data) {

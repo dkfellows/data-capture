@@ -19,8 +19,16 @@ public class DirectoryLister {
 	@Value("#{'${instrument.directories}'.split(',')}")
 	public void setRoots(List<String> rootNames) {
 		List<File> newRoots = new ArrayList<>();
-		for (String r : rootNames)
-			newRoots.add(new File(r));
+		for (String r : rootNames) {
+			File root = new File(r);
+			File[] list = root.listFiles();
+			if (list == null)
+				continue;
+			for (File item : list)
+				if (item != null && item.isDirectory()
+						&& !item.getName().startsWith("."))
+					newRoots.add(item);
+		}
 		roots = newRoots;
 	}
 

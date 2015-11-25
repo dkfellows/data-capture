@@ -155,7 +155,7 @@ public interface Interface {
 		public SeekConnector.Assay assay;
 		@XmlElement
 		public List<Directory> directory = new ArrayList<>();
-		@XmlElement
+		@XmlElement(name = "created-asset")
 		public URI createdAsset;
 	}
 }

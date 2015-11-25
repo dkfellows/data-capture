@@ -7,6 +7,7 @@ import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.CREATED;
 import static javax.ws.rs.core.Response.Status.FOUND;
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
+import static javax.ws.rs.core.Response.Status.fromStatusCode;
 import static org.apache.commons.codec.binary.Base64.encodeBase64String;
 import static org.apache.commons.io.IOUtils.readLines;
 
@@ -59,6 +60,23 @@ public class SeekConnector {
 		dbf.setNamespaceAware(true);
 	}
 
+	private DocumentBuilder parser() throws ParserConfigurationException {
+		DocumentBuilder builder = dbf.newDocumentBuilder();
+		builder.setErrorHandler(new DefaultHandler() {
+			@Override
+			public void warning(SAXParseException exception)
+					throws SAXException {
+				log.warn(exception.getMessage());
+			}
+
+			@Override
+			public void error(SAXParseException exception) throws SAXException {
+				log.error(exception.getMessage(), exception);
+			}
+		});
+		return builder;
+	}
+
 	@XmlRootElement(name = "user")
 	@XmlType(propOrder = {})
 	public static class User {
@@ -103,8 +121,13 @@ public class SeekConnector {
 		}
 	}
 
+	@Value("${seek.project:5}")
+	private Integer projectID;
+	@Value("${seek.institution:0}")
+	private Integer institution;
 	private URL seek;
 	private String credentials;
+	private Proxy proxy;
 
 	@Value("${seek.url}")
 	public void setSeekLocation(String location) throws MalformedURLException {
@@ -122,9 +145,7 @@ public class SeekConnector {
 				+ encodeBase64String(credentials.getBytes(Charset.forName("UTF-8")));
 	}
 
-	private Proxy proxy;
-
-	@Value("${seek.proxy}")
+	@Value("${outgoing.proxy}")
 	public void setProxy(String proxy) {
 		if ("IGNORE".equals(proxy)) {
 			this.proxy = null;
@@ -154,21 +175,11 @@ public class SeekConnector {
 
 	private Document get(String suffix) throws IOException, SAXException,
 			ParserConfigurationException {
-		DocumentBuilder builder = dbf.newDocumentBuilder();
-		builder.setErrorHandler(new DefaultHandler() {
-			@Override
-			public void warning(SAXParseException exception)
-					throws SAXException {
-				log.warn(exception.getMessage());
-			}
-
-			@Override
-			public void error(SAXParseException exception) throws SAXException {
-				log.error(exception.getMessage(), exception);
-			}
-		});
-		try (InputStream is = connect(suffix).getInputStream()) {
-			return builder.parse(is);
+		DocumentBuilder builder = parser();
+		HttpURLConnection conn = connect(suffix);
+		conn.setInstanceFollowRedirects(true);
+		try (InputStream is = conn.getInputStream()) {
+			return builder.parse(is, new URL(seek, suffix).toString());
 		}
 	}
 
@@ -272,104 +283,120 @@ public class SeekConnector {
 		return assays;
 	}
 
-	private class FormBuilder {
+	private class Form {
+		private static final String N = "\r\n";
+		private static final String PREFIX = "------FormToken";
+		private static final String CD = N
+				+ "Content-Disposition: form-data; name=\"";
 		private final StringBuilder b = new StringBuilder();
-		final String token;
+		private final String token;
+		private byte[] bytes;
 
-		FormBuilder(String content) {
+		public Form(String content) {
 			String token;
 			int tokenid = 10203040;
 			do {
-				token = "------FormToken" + (tokenid++);
+				token = PREFIX + (tokenid++);
 			} while (content.indexOf(token) >= 0);
 			this.token = token;
 		}
 
-		void addField(String field) {
+		public void addField(String field) {
 			addField(field, "");
 		}
 
-		void addField(String field, Object value) {
-			b.append(token)
-					.append("\r\nContent-Disposition: form-data; name=\"")
-					.append(field).append("\"\r\n\r\n")
-					.append(value.toString()).append("\r\n");
+		public void addField(String field, Object value) {
+			b.append(token).append(CD).append(field).append("\"" + N + N)
+					.append(value).append(N);
 		}
 
-		void addContent(String field, String name, String type, String content) {
-			b.append(token)
-					.append("\r\nContent-Disposition: form-data; name=\"")
-					.append(field).append("\"; filename=\"").append(name)
-					.append("\"\r\n\r\n").append(content).append("\r\n");
+		public void addContent(String field, String name, String type,
+				String content) {
+			b.append(token).append(CD).append(field).append("\"; filename=\"")
+					.append(name).append("\"" + N + N).append(content)
+					.append(N);
 		}
 
-		byte[] done() {
-			return b.append(token).append("--\r\n").toString()
+		public void build() {
+			bytes = b.append(token).append("--" + N).toString()
 					.getBytes(Charset.forName("UTF-8"));
+		}
+
+		public String contentType() {
+			return "multipart/form-data; boundary=" + token;
+		}
+
+		public String length() {
+			assert bytes != null : "form must be built before use";
+			return Integer.toString(bytes.length);
+		}
+
+		public byte[] content() {
+			assert bytes != null : "form must be built before use";
+			return bytes;
 		}
 	}
 
+	//TODO linkFileAsset(User user, Assay assay, String name,
+	//                   String title, String type, URL content)
 	public URL uploadFileAsset(User user, Assay assay, String name,
 			String title, String type, String content) throws IOException {
-		int projectID = 5;// FIXME hardcoded
-		int institution = 0;
-
-		FormBuilder b = new FormBuilder(content);
-		b.addField("utf8", "\u2713"); // ✓
+		Form form = new Form(content);
+		form.addField("utf8", "\u2713"); // ✓
 		// b.addField("authenticity_token", "????");//TODO do we need this?
-		b.addField("data_file[parent_name]");
-		b.addField("data_file[is_with_sample]");
-		b.addContent("content_blob[data]", name, type, content);
-		b.addField("content_blob[data_url]");
-		b.addField("content_blob[original_filename]");
-		b.addField("url_checked", "false");
-		b.addField("data_file[title]", title);
-		b.addField("description");
-		b.addField("possible_data_file_project_ids", projectID);
+		form.addField("data_file[parent_name]");
+		form.addField("data_file[is_with_sample]");
+		form.addContent("content_blob[data]", name, type, content);
+		form.addField("content_blob[data_url]");
+		form.addField("content_blob[original_filename]");
+		form.addField("url_checked", "false");
+		form.addField("data_file[title]", title);
+		form.addField("description");
+		form.addField("possible_data_file_project_ids", projectID);
 		// b.addField("data_file[project_ids][]");//WTF?!
-		b.addField("data_file[project_ids][]", projectID);
-		b.addField("sharing[permissions][contributor_types]", "[]");
-		b.addField("sharing[permissions][values]", "{}");
-		b.addField("sharing[access_type_0]", "0");
-		b.addField("sharing[sharing_scope]", "2");// TODO hardcoded?
-		b.addField("sharing[your_proj_access_type]", "2");// TODO hardcoded?
-		b.addField("sharing[access_type_2]", "1");
-		b.addField("sharing[access_type_4]", "2");
-		b.addField("proj_project[select]");
-		b.addField("proj_access_type_select", "0");
-		b.addField("individual_people_access_type_select", "0");
-		b.addField("tag_list");
-		b.addField("attribution-typeahead");
-		b.addField("attributions", "[]");
-		b.addField("creator-typeahead");
-		b.addField("creators", "[[\"" + user.name + "\"," + user.id + "]]");
-		b.addField("adv_project_id");
-		b.addField("adv_institution_id", institution);
-		b.addField("data_file[other_creators]");
-		b.addField("possible_publications", "0");
-		b.addField("possible_assays", "1");// TODO hardcoded?
-		b.addField("assay_ids[]", assay.id);
-		b.addField("assay_relationship_type", "0"); // ?
-		b.addField("possible_data_file_event_ids", "0");// ?
-		b.addField("data_file[event_ids][]");
-		b.addField("possible_data_file_sample_ids", "0");
-		b.addField("data_file[sample_ids][]");
-		byte[] form = b.done();
+		form.addField("data_file[project_ids][]", projectID);
+		form.addField("sharing[permissions][contributor_types]", "[]");
+		form.addField("sharing[permissions][values]", "{}");
+		form.addField("sharing[access_type_0]", "0");
+		form.addField("sharing[sharing_scope]", "2");// TODO hardcoded?
+		form.addField("sharing[your_proj_access_type]", "2");// TODO hardcoded?
+		form.addField("sharing[access_type_2]", "1");
+		form.addField("sharing[access_type_4]", "2");
+		form.addField("proj_project[select]");
+		form.addField("proj_access_type_select", "0");
+		form.addField("individual_people_access_type_select", "0");
+		form.addField("tag_list");
+		form.addField("attribution-typeahead");
+		form.addField("attributions", "[]");
+		form.addField("creator-typeahead");
+		form.addField("creators", "[[\"" + user.name + "\"," + user.id + "]]");
+		form.addField("adv_project_id");
+		form.addField("adv_institution_id", institution);
+		form.addField("data_file[other_creators]");
+		form.addField("possible_publications", "0");
+		form.addField("possible_assays", "1");// TODO hardcoded?
+		form.addField("assay_ids[]", assay.id);
+		form.addField("assay_relationship_type", "0"); // ?
+		form.addField("possible_data_file_event_ids", "0");// ?
+		form.addField("data_file[event_ids][]");
+		form.addField("possible_data_file_sample_ids", "0");
+		form.addField("data_file[sample_ids][]");
+		form.build();
 
 		try {
 			HttpURLConnection c = connect("/data_files");
 			try {
 				c.setDoOutput(true);
 				c.setRequestMethod("POST");
-				c.setRequestProperty("Content-Type",
-						"multipart/form-data; boundary=" + b.token);
-				c.setRequestProperty("Content-Length",
-						Integer.toString(form.length));
+				c.setRequestProperty("Content-Type", form.contentType());
+				c.setRequestProperty("Content-Length", form.length());
 				c.connect();
-				c.getOutputStream().write(form);
-				int code = c.getResponseCode();
-				if (code != CREATED.getStatusCode()
-						&& code != FOUND.getStatusCode()) {
+				c.getOutputStream().write(form.content());
+				switch (fromStatusCode(c.getResponseCode())) {
+				case CREATED:
+				case FOUND:
+					return new URL(seek, c.getHeaderField("Location"));
+				default:
 					for (String line : readLines(c.getErrorStream())) {
 						log.error("problem in file upload: " + line);
 						break;
@@ -377,7 +404,6 @@ public class SeekConnector {
 					throw new WebApplicationException("upload failed",
 							INTERNAL_SERVER_ERROR);
 				}
-				return new URL(seek, c.getHeaderField("Location"));
 			} finally {
 				c.disconnect();
 			}

@@ -29,7 +29,9 @@ public class TaskStore {
 	private int count;
 	private Map<String, Pair> tasks = new TreeMap<>();
 	@Value("${archive.root}")
-	File root;
+	File archRoot;
+	@Value("${metadata.root}")
+	File metaRoot;
 	@Autowired
 	AsyncTaskExecutor executor;
 	@Autowired
@@ -82,13 +84,17 @@ public class TaskStore {
 		md.setUser(user);
 		assert assay != null && assay.url != null;
 		md.setExperiment(assay);
-		ArrayList<File> directories = new ArrayList<>();
+		File directory = null;
 		for (String d : dirs) {
 			File dir = new File(d);
-			if (dir.exists())
-				directories.add(dir);
+			if (dir.exists()) {
+				directory = dir;
+				break;
+			}
 		}
-		ArchiverTask at = new ArchiverTask(md, root, directories, seek);
+		if (directory == null)
+			throw new WebApplicationException("no such directory", BAD_REQUEST);
+		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, directory, seek);
 		synchronized (this) {
 			Pair p = new Pair(md, dirs, at, executor.submit(at));
 			String key = "task" + (++count);
@@ -107,7 +113,7 @@ public class TaskStore {
 	 */
 	private synchronized Pair get(String id) {
 		if (id == null || id.isEmpty())
-			throw new WebApplicationException(BAD_REQUEST);
+			throw new WebApplicationException("silly input", BAD_REQUEST);
 		Pair task = tasks.get(id);
 		if (task == null)
 			throw new WebApplicationException(NOT_FOUND);

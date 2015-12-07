@@ -11,11 +11,11 @@ import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_MIME;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_NAME;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_ORIGIN;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_SHA1;
+import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_SIZE;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_TIME;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.ID;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.TIME;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.USER;
-import static org.apache.commons.io.FilenameUtils.getExtension;
 import static org.json.JSONObject.NULL;
 
 import java.io.File;
@@ -32,6 +32,8 @@ import java.util.TimeZone;
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
 import manchester.synbiochem.datacapture.SeekConnector.User;
 
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.apache.tika.Tika;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -39,16 +41,12 @@ import org.json.JSONObject;
 public class MetadataRecorder {
 	/** Standard timezone; Z(ulu) */
 	private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
-	/**
-	 * Number of leading characters from filename to use for archive directory
-	 * name.
-	 */
-	private static final int FILE_PREFIX_LENGTH = 2;
+	private static final int BUFFER_SIZE = 8192;
 
 	// TODO Can we share this between instances
 	private final Tika tika;
 
-	private final Date timestamp;
+	private final String timestamp;
 	/**
 	 * ISO8601 timestamp formatter. DO NOT share between instances; not
 	 * thread-safe.
@@ -58,23 +56,46 @@ public class MetadataRecorder {
 	private final JSONObject o;
 	private User user;
 	private Assay assay;
+	private StringBuilder csvBuffer;
+	private CSVPrinter csv;
 
 	public MetadataRecorder(Tika tika) {
 		ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		ISO8601.setTimeZone(UTC);
 		this.tika = tika;
 
-		timestamp = new Date();
+		timestamp = ISO8601.format(new Date());
 		o = new JSONObject();
 		o.put(ID, "");
 		o.put(TIME, "");
 		o.put(USER, NULL);
 		o.put(EXPERIMENT, NULL);
 		files = new ArrayList<>();
+		csvBuffer = new StringBuilder();
+		try {
+			csv = new CSVPrinter(csvBuffer, CSVFormat.TDF);
+		} catch (IOException e) {
+			throw new RuntimeException("unexpected IO failure", e);
+		}
+		addRecord(EXPERIMENT, USER, TIME, FILE_ARCHIVE, FILE_ORIGIN, FILE_SHA1,
+				FILE_MD5, FILE_MIME, FILE_SIZE, FILE_TIME);
 	}
 
-	public void addFile(String sha1, String md5, String name, String mimetype,
-			String source, String archived, Date time) {
+	/**
+	 * Force there to be exactly 10 columns in the CSV.
+	 */
+	private void addRecord(Object a1, Object a2, Object a3, Object a4,
+			Object a5, Object a6, Object a7, Object a8, Object a9, Object a10) {
+		try {
+			csv.printRecord(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+		} catch (IOException e) {
+			throw new RuntimeException("unexpected IO failure", e);
+		}
+	}
+
+	protected final void addFile(String sha1, String md5, String name,
+			String mimetype, String source, String archived, Date time,
+			long size) {
 		JSONObject f = new JSONObject();
 		f.put(FILE_SHA1, sha1);
 		f.put(FILE_MD5, md5);
@@ -83,7 +104,10 @@ public class MetadataRecorder {
 		f.put(FILE_ORIGIN, source);
 		f.put(FILE_ARCHIVE, archived);
 		f.put(FILE_TIME, ISO8601.format(time));
+		f.put(FILE_SIZE, size);
 		files.add(f);
+		addRecord(getExperiment().url, getUser().url, timestamp, archived,
+				source, sha1, md5, mimetype, size, ISO8601.format(time));
 	}
 
 	/**
@@ -94,6 +118,8 @@ public class MetadataRecorder {
 	 *            The name of the file that should be used as the user-visible
 	 *            name.
 	 * @param source
+	 *            The original location of the file.
+	 * @param archived
 	 *            The file to add. Will have checksums computed and its MIME
 	 *            type determined.
 	 * @return The archive location to copy the file to.
@@ -101,24 +127,21 @@ public class MetadataRecorder {
 	 *             If anything goes wrong when computing checksums or MIME
 	 *             types.
 	 */
-	public String addFile(String name, File source) throws IOException {
+	public void addFile(String name, File source, File archived) throws IOException {
 		Digest sha1 = new Digest(SHA1);
 		Digest md5 = new Digest(MD5);
-		byte[] buffer = new byte[8192];
-		int len;
-		try (FileInputStream fis = new FileInputStream(source)) {
+		byte[] buffer = new byte[BUFFER_SIZE];
+		long size = source.length();
+		try (FileInputStream fis = new FileInputStream(archived)) {
+			int len;
 			while ((len = fis.read(buffer)) >= 0) {
 				sha1.update(buffer, len);
 				md5.update(buffer, len);
 			}
 		}
-		String archived = "data/"
-				+ sha1.toString().substring(0, FILE_PREFIX_LENGTH) + "/" + sha1
-				+ "." + getExtension(source.getName());
 		addFile(sha1.toString(), md5.toString(), name, tika.detect(source),
-				source.getAbsolutePath(), archived,
-				new Date(source.lastModified()));
-		return archived;
+				source.getAbsolutePath(), archived.getAbsolutePath(),
+				new Date(source.lastModified()), size);
 	}
 
 	public void setExperiment(Assay experiment) {
@@ -162,7 +185,7 @@ public class MetadataRecorder {
 				a.put(f.get(FILE_SHA1));
 			}
 			id = new Digest(SHA1).update(a.toString()).toString();
-			o.put(TIME, ISO8601.format(timestamp));
+			o.put(TIME, timestamp);
 			o.put(ID, id);
 			o.put(FILES, files);
 		}
@@ -178,6 +201,15 @@ public class MetadataRecorder {
 	public String get() {
 		getId();
 		return o.toString(4);
+	}
+
+	/**
+	 * Get the CSV document.
+	 * 
+	 * @return CSV in a string.
+	 */
+	public String getCSV() {
+		return csvBuffer.toString();
 	}
 
 	/**

@@ -103,8 +103,11 @@ function setTimestamp(cell, timestamp) {
 	}
 }
 /** How exactly to set the progress bar and its label */
-function setProgress(progress, factor) {
+function setProgress(progress, factor, status) {
 	var label = progress.find(".progress-label");
+	var msg = String(status || "");
+	if (msg.length > 0)
+		msg += " ";
 	if (factor === undefined) {
 		progress.progressbar("option", {
 			value : false
@@ -116,7 +119,7 @@ function setProgress(progress, factor) {
 		progress.progressbar("option", {
 			value : val
 		});
-		label.text(val == 100 ? "Done" : val + "%");
+		label.text(val == 100 ? "Done" : msg + val + "%");
 		return val == 100;
 	}
 }
@@ -172,7 +175,7 @@ function addTaskRow(table, task) {
 	linkcell(task.assay);
 	datecell(task["start-time"]).attr("id", "start_" + task.id);
 	var progress = progressbar(task.id);
-	setProgress(progress, task.progress);
+	setProgress(progress, task.progress, task.status);
 	cell().append(progress);
 	datecell(task["end-time"]).attr("id", "end_" + task.id);
 	var asset = task["created-asset"];
@@ -209,7 +212,7 @@ function updateProgress() {
 		var url = $("#apiTasks")[0].href + "/" + id;
 		getJSON(url, function(task) {
 			setTimestamp(start, task["start-time"]);
-			setProgress(progress, task.progress);
+			setProgress(progress, task.progress, task.status);
 			setTimestamp(end, task["end-time"]);
 		}, function(a) {
 			$("#" + id).remove();

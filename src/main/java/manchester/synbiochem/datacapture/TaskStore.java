@@ -60,6 +60,11 @@ public class TaskStore {
 		String key;
 		final List<String> dirs;
 
+		String getStatus() {
+			if (result.isDone())
+				return null;
+			return task.getState();
+		}
 		Double getProgress() {
 			if (result.isDone())
 				return 1.0;
@@ -124,6 +129,7 @@ public class TaskStore {
 		Pair task = get(id);
 		Interface.ArchiveTask result = new Interface.ArchiveTask();
 		result.id = id;
+		result.status = task.getStatus();
 		result.progress = task.getProgress();
 		result.submitter = task.md.getUser();
 		result.assay = task.md.getExperiment();

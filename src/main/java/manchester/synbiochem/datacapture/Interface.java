@@ -140,6 +140,8 @@ public interface Interface {
 		@XmlElement
 		public String id;
 		@XmlElement
+		public String status;
+		@XmlElement
 		public Double progress;
 		@XmlElement
 		public URI url;

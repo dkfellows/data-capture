@@ -8,8 +8,13 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.file.FileAlreadyExistsException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
@@ -29,9 +34,12 @@ import org.apache.commons.logging.LogFactory;
  * @author Donal Fellows
  */
 public class ArchiverTask implements Callable<URL> {
+	private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
 	private static final Charset UTF8 = Charset.forName("UTF-8");
 	private Log log = LogFactory.getLog(ArchiverTask.class);
 
+	private static int tasksCounter;
+	private final int myID;
 	private final MetadataRecorder metadata;
 	private final File directoryToArchive;
 	private final File archiveRoot;
@@ -45,15 +53,21 @@ public class ArchiverTask implements Callable<URL> {
 	private final List<Entry> entries;
 	Long start;
 	Long finish;
+	private DateFormat ISO8601;
 
 	public ArchiverTask(MetadataRecorder metadata, File archiveRoot,
 			File metastoreRoot, File directoryToArchive, SeekConnector seek) {
+		ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+		ISO8601.setTimeZone(UTC);
 		this.metadata = metadata;
 		this.archiveRoot = archiveRoot;
 		this.metastoreRoot = metastoreRoot;
 		this.directoryToArchive = directoryToArchive;
 		this.seek = seek;
 		this.entries = new ArrayList<>();
+		synchronized (ArchiverTask.class) {
+			myID = ++tasksCounter;
+		}
 	}
 
 	/**
@@ -74,14 +88,16 @@ public class ArchiverTask implements Callable<URL> {
 
 	@Override
 	public URL call() {
+		log.info("task[" + myID + "] started archive");
 		start = currentTimeMillis();
 		try {
 			return workflow();
 		} catch (RuntimeException e) {
-			log.warn("unexpected problem processing task", e);
+			log.warn("task[" + myID + "] unexpected problem processing", e);
 			return null;
 		} finally {
 			finish = currentTimeMillis();
+			log.info("task[" + myID + "] finished archive");
 		}
 	}
 
@@ -127,7 +143,7 @@ public class ArchiverTask implements Callable<URL> {
 		try {
 			FileUtils.write(jsonFile, metadata.get(), UTF8);
 		} catch (IOException e) {
-			log.warn("failed to write metadata descriptor to " + jsonFile, e);
+			log.warn("task[" + myID + "] failed to write metadata descriptor to " + jsonFile, e);
 		}
 		return tellSeek();
 	}
@@ -167,10 +183,11 @@ public class ArchiverTask implements Callable<URL> {
 			File source = ent.getFile();
 			File dest = new File(archiveRoot, ent.getName());
 			try {
+				log.info("task[" + myID + "] copying " + source);
 				copyOneFile(source, dest);
 				ent.setDest(dest);
 			} catch (IOException e) {
-				log.warn("failed to copy " + source + " to " + dest, e);
+				log.warn("task[" + myID + "] failed to copy " + source + " to " + dest, e);
 			} finally {
 				copyCount++;
 			}
@@ -183,7 +200,11 @@ public class ArchiverTask implements Callable<URL> {
 		File dir = dest.getParentFile();
 		if (!dir.exists())
 			dir.mkdirs();
-		copy(source.toPath(), dest.toPath(), COPY_ATTRIBUTES);
+		try {
+			copy(source.toPath(), dest.toPath(), COPY_ATTRIBUTES);
+		} catch (FileAlreadyExistsException e) {
+			// ignore; assume it is the same thing
+		}
 	}
 
 	/**
@@ -192,9 +213,10 @@ public class ArchiverTask implements Callable<URL> {
 	protected void extractMetadata() {
 		for (Entry ent:entries) {
 			try {
+				log.info("task[" + myID + "] characterising " + ent.getFile());
 				metadata.addFile(ent.getName(), ent.getFile(), ent.getDestination());
 			} catch (IOException e) {
-				log.warn("failed to generate metadata for " + ent.dest, e);
+				log.warn("task[" + myID + "] failed to generate metadata for " + ent.dest, e);
 			} finally {
 				metaCount++;
 			}
@@ -215,12 +237,17 @@ public class ArchiverTask implements Callable<URL> {
 	 */
 	protected URL tellSeek() {
 		metadata.get();
+		String instrument = directoryToArchive.getParentFile().getName();
+		String time = ISO8601.format(new Date(start));
 		try {
 			return seek.uploadFileAsset(metadata.getUser(),
-					metadata.getExperiment(), "output.csv",
-					"Experimental Results Metadata", "text/csv", metadata.getCSV());
+					metadata.getExperiment(), "metadata.tsv",
+					"CSV document describing files copied from instrument "
+							+ instrument + " to storage at timestamp " + time,
+					"Experimental Results Metadata", "text/tab-separated-values",
+					metadata.getCSV());
 		} catch (IOException e) {
-			log.warn("failed to upload metadata to SEEK", e);
+			log.warn("task[" + myID + "] failed to upload metadata to SEEK", e);
 			return null;
 		}
 	}

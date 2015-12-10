@@ -98,21 +98,25 @@ public class Application implements Interface {
 	@RolesAllowed("ROLE_USER")
 	public Response createTask(ArchiveTask proposedTask, UriInfo ui) {
 		if (proposedTask == null)
-			throw new WebApplicationException(BAD_REQUEST);
+			throw new WebApplicationException("bad task", BAD_REQUEST);
 
 		User u0 = proposedTask.submitter;
-		if (u0 == null || u0.url == null)
-			throw new WebApplicationException(BAD_REQUEST);
+		if (u0 == null)
+			throw new WebApplicationException("bad user", BAD_REQUEST);
+		if (u0.url == null)
+			throw new WebApplicationException("no user url", BAD_REQUEST);
 		User user = seek.getUser(u0.url);
 
 		Assay a0 = proposedTask.assay;
-		if (a0 == null || a0.url == null)
-			throw new WebApplicationException(BAD_REQUEST);
+		if (a0 == null)
+			throw new WebApplicationException("bad assay", BAD_REQUEST);
+		if (a0.url == null)
+			throw new WebApplicationException("no assay url", BAD_REQUEST);
 		Assay assay = seek.getAssay(a0.url);
 
 		List<Directory> d0 = proposedTask.directory;
 		if (d0 == null)
-			throw new WebApplicationException(BAD_REQUEST);
+			throw new WebApplicationException("bad directory", BAD_REQUEST);
 		List<String> dirs = lister.getSubdirectories(d0);
 		if (dirs.isEmpty())
 			throw new WebApplicationException(

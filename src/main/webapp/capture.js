@@ -173,7 +173,7 @@ function addTaskRow(table, task) {
 	}
 	/** Create a cell that links to a named thing */
 	function linkcell(thing) {
-		cell().append($("<a>").attr("href", thing.url).text(thing.name));
+		return cell().append($("<a>").attr("href", thing.url).text(thing.name));
 	}
 	/** Create a cell containing a timestamp */
 	function datecell(timestamp) {
@@ -242,7 +242,7 @@ function updateDirs() {
 	getJSON($("#apiDirs")[0].href, function(data) {
 		dejson(data.directory).forEach(function(item) {
 			if ($("#" + item.id).length)
-				continue;
+				return;
 			var s = item.name.split("/").slice(-2);
 			var instrument = s[0];
 			var output = s[1];
@@ -257,7 +257,7 @@ function updateAssays() {
 	getJSON($("#apiAssays")[0].href, function(data) {
 		dejson(data.directory).forEach(function(item) {
 			if ($("#" + item.id).length)
-				continue;
+				return;
 			addOption($("#assays"), item.id, item.url, item.name).
 				attr("sort-key", item.name);
 		});
@@ -285,7 +285,7 @@ $(function() {
 		}
 	}).selectmenu("menuWidget").addClass("overflow");
 	$("#submit").button().click(function() {
-		postJSON($("#apiTasks")[0].href, {
+		var request = {
 			submitter : {
 				url : theUser
 			},
@@ -295,7 +295,9 @@ $(function() {
 			directory : [ {
 				name : theDir
 			} ]
-		}, function(data) {
+		};
+		//console.log("request object", request);
+		postJSON($("#apiTasks")[0].href, request, function(data) {
 			addTaskRow($("#tasks"), data);
 		});
 		return false;

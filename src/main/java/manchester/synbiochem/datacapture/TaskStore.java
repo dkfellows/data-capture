@@ -17,6 +17,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import javax.annotation.PreDestroy;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.UriBuilder;
 
@@ -44,7 +45,8 @@ public class TaskStore {
 	}
 
 	static class Pair {
-		Pair(MetadataRecorder md, List<String> dirs, ArchiverTask task, Future<URL> result) {
+		Pair(MetadataRecorder md, List<String> dirs, ArchiverTask task,
+				Future<URL> result) {
 			assert md != null;
 			this.md = md;
 			assert task != null;
@@ -54,6 +56,7 @@ public class TaskStore {
 			assert result != null;
 			this.result = result;
 		}
+
 		final MetadataRecorder md;
 		final ArchiverTask task;
 		final Future<URL> result;
@@ -65,16 +68,19 @@ public class TaskStore {
 				return null;
 			return task.getState();
 		}
+
 		Double getProgress() {
 			if (result.isDone())
 				return 1.0;
 			return task.getProgress();
 		}
+
 		Date getStart() {
 			if (task.start == null)
 				return null;
 			return new Date(task.start.longValue());
 		}
+
 		Date getFinish() {
 			if (task.finish == null)
 				return null;
@@ -99,7 +105,8 @@ public class TaskStore {
 		}
 		if (directory == null)
 			throw new WebApplicationException("no such directory", BAD_REQUEST);
-		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, directory, seek);
+		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, directory,
+				seek);
 		synchronized (this) {
 			Pair p = new Pair(md, dirs, at, executor.submit(at));
 			String key = "task" + (++count);
@@ -147,8 +154,11 @@ public class TaskStore {
 		if (ub != null)
 			result.url = ub.build(id);
 		try {
-			if (task.result.isDone())
-				result.createdAsset = task.result.get().toURI();
+			if (task.result.isDone()) {
+				URL made = task.result.get();
+				if (made != null)
+					result.createdAsset = made.toURI();
+			}
 		} catch (URISyntaxException | InterruptedException | ExecutionException e) {
 			// ignore these; they should all be impossible
 		}
@@ -170,6 +180,18 @@ public class TaskStore {
 			throw new WebApplicationException(GONE);
 		if (!task.result.isDone())
 			task.result.cancel(false);
+	}
+
+	@PreDestroy
+	private void stopAllTasks() {
+		List<Pair> tasks;
+		synchronized (this) {
+			// Take a copy so we don't need to hold the lock
+			tasks = new ArrayList<>(this.tasks.values());
+		}
+		for (Pair task : tasks)
+			if (task != null && task.result != null && !task.result.isDone())
+				task.result.cancel(true);
 	}
 
 	public Double getStatus(String id) throws InterruptedException,

@@ -11,7 +11,19 @@ function addOption(select, id, value, name) {
 	var opt = "<option></option>";
 	if (id !== undefined)
 		opt = "<option id='" + id + "'></option>";
-	select.append($(opt).val(value).text(name));
+	opt = $(opt);
+	select.append(opt.val(value).text(name));
+	return opt;
+}
+/** How to sort DOM elements. */
+function sortChildren(container, property) {
+	var elems = container.children();
+	elems.sort(function(a,b) {
+		var aProp = a.getAttribute(property);
+		var bProp = b.getAttribute(property);
+		return aProp>bProp ? 1 : aProp<bProp ? -1 : 0;
+	});
+	elems.detach().appendTo(container);
 }
 /** How to request some JSON asynchronously */
 function getJSON(u, done, errors) {
@@ -226,6 +238,33 @@ function updateProgress() {
 	});
 }
 
+function updateDirs() {
+	getJSON($("#apiDirs")[0].href, function(data) {
+		dejson(data.directory).forEach(function(item) {
+			if ($("#" + item.id).length)
+				continue;
+			var s = item.name.split("/").slice(-2);
+			var instrument = s[0];
+			var output = s[1];
+			addOption($("#dirs"), item.id, item.name, "Instrument: "
+					+ instrument + " Dir: " + output).
+				attr("sort-key", item.name);
+		});
+		sortChildren($("#dirs"), "sort-key");
+	});
+}
+function updateAssays() {
+	getJSON($("#apiAssays")[0].href, function(data) {
+		dejson(data.directory).forEach(function(item) {
+			if ($("#" + item.id).length)
+				continue;
+			addOption($("#assays"), item.id, item.url, item.name).
+				attr("sort-key", item.name);
+		});
+		sortChildren($("#assays"), "sort-key");
+	});
+}
+
 /** Start everything going on page load */
 $(function() {
 	var theUser, theAssay, theDir;
@@ -263,13 +302,17 @@ $(function() {
 	});
 	getJSON($("#apiUsers")[0].href, function(data) {
 		dejson(data.user).forEach(function(item) {
-			addOption($("#users"), item.id, item.url, item.name);
+			addOption($("#users"), item.id, item.url, item.name).
+				attr("sort-key", item.name);
 		});
+		sortChildren($("#assays"), "sort-key");
 	});
 	getJSON($("#apiAssays")[0].href, function(data) {
 		dejson(data.assay).forEach(function(item) {
-			addOption($("#assays"), item.id, item.url, item.name);
+			addOption($("#assays"), item.id, item.url, item.name).
+				attr("sort-key", item.name);
 		});
+		sortChildren($("#assays"), "sort-key");
 	});
 	getJSON($("#apiDirs")[0].href, function(data) {
 		dejson(data.directory).forEach(function(item) {
@@ -277,8 +320,10 @@ $(function() {
 			var instrument = s[0];
 			var output = s[1];
 			addOption($("#dirs"), item.id, item.name, "Instrument: "
-					+ instrument + " Dir: " + output);
+					+ instrument + " Dir: " + output).
+				attr("sort-key", item.name);
 		});
+		sortChildren($("#dirs"), "sort-key");
 	});
 	getJSON($("#apiTasks")[0].href, function(data) {
 		dejson(data.task).forEach(function(t) {
@@ -286,4 +331,6 @@ $(function() {
 		});
 	});
 	setInterval(updateProgress, 10000);
+	setInterval(updateDirs, 30000)
+	setInterval(updateAssays, 30000)
 });

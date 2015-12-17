@@ -29,7 +29,7 @@ function sortChildren(container, property) {
 function getJSON(u, done, errors) {
 	if (errors === undefined)
 		errors = function(jqXHR, textStatus, errorThrown) {
-			alert(errorThrown);
+			console.log("problem when fetching " + u, errorThrown);
 		};
 	$.ajax({
 		type : "GET",
@@ -44,7 +44,7 @@ function getJSON(u, done, errors) {
 function postJSON(u, object, done, errors) {
 	if (errors === undefined)
 		errors = function(jqXHR, textStatus, errorThrown) {
-			alert(errorThrown);
+			console.log("problem when posting to " + u, object, errorThrown);
 		};
 	$.ajax({
 		type : "POST",
@@ -54,6 +54,21 @@ function postJSON(u, object, done, errors) {
 		contentType : "application/json",
 		accept : "application/json",
 		data : JSON.stringify(object),
+		success : done,
+		error : errors
+	});
+}
+/** How to request some JSON asynchronously */
+function deleteJSON(u, done, errors) {
+	if (errors === undefined)
+		errors = function(jqXHR, textStatus, errorThrown) {
+			console.log("problem when deleting " + u, errorThrown);
+		};
+	$.ajax({
+		type : "DELETE",
+		url : u,
+		async : true,
+		accept : "application/json",
 		success : done,
 		error : errors
 	});
@@ -142,15 +157,14 @@ function setProgress(progress, factor, status) {
 function addTaskRow(table, task) {
 	/** Create a delete button */
 	function delbutn(id) {
-		return $(
-				"<button id='del_" + id
+		return $("<button id='del_" + id
 						+ "' title='Delete this archiving task.'>Del</button>")
-				.button({
-					icons : {
-						primary : "ui-icon-trash"
-					},
-					text : false
-				});
+			.button({
+				icons : {
+					primary : "ui-icon-trash"
+				},
+				text : false
+			});
 	}
 	/** Create a progress bar */
 	function progressbar(id) {
@@ -181,7 +195,7 @@ function addTaskRow(table, task) {
 		setTimestamp(c, timestamp);
 		return c;
 	}
-	var t;
+
 	cell().text(task.id);
 	linkcell(task.submitter);
 	linkcell(task.assay);
@@ -196,19 +210,9 @@ function addTaskRow(table, task) {
 		name : asset === undefined ? "" : "Asset"
 	}).attr("id", "asset_" + id);
 	cell().append(delbutn(task.id).click(function() {
-		var u = $("#apiTasks")[0].href + "/" + task.id;
-		$.ajax({
-			type : "DELETE",
-			url : u,
-			async : true,
-			accept : "application/json",
-			success : function(a, b, c) {
-				$("#" + task.id).remove();
-			},
-			error : function(a, b, c) {
-				console.log("delete fail", a, b, c);
-				alert("failed to delete task");
-			}
+		deleteJSON($("#apiTasks")[0].href + "/" + task.id, function(response) {
+			console.log("response from delete", response);
+			$("#" + task.id).remove();
 		});
 	}));
 	table.append(row);
@@ -284,7 +288,11 @@ $(function() {
 			theDir = d.item.value;
 		}
 	}).selectmenu("menuWidget").addClass("overflow");
-	$("#submit").button().click(function() {
+	function createTask() {
+		if (theUser === undefined || theAssay === undefined || theDir === undefined) {
+			alert("please select something in all fields");
+			return false;
+		}
 		var request = {
 			submitter : {
 				url : theUser
@@ -296,10 +304,25 @@ $(function() {
 				name : theDir
 			} ]
 		};
-		//console.log("request object", request);
 		postJSON($("#apiTasks")[0].href, request, function(data) {
 			addTaskRow($("#tasks"), data);
 		});
+		return true;
+	}
+	var dialog = $("#new").dialog({
+		autoOpen: false,
+		height: 300,
+		width: 350,
+		modal: true,
+		buttons {
+			"Create archiving task": createTask,
+			"Cancel": function () {
+				dialog.dialog("close");
+			}
+		}
+	});
+	$("#submit").button().click(function() {
+		createTask();
 		return false;
 	});
 	getJSON($("#apiUsers")[0].href, function(data) {
@@ -317,6 +340,12 @@ $(function() {
 		sortChildren($("#assays"), "sort-key");
 	});
 	getJSON($("#apiDirs")[0].href, function(data) {
+		$("#dirs").children().each(function(){
+			var a = $(this).attr("sort-key");
+			if (a === undefined) {
+				$(this).attr("sort-key", "");
+			}
+		});
 		dejson(data.directory).forEach(function(item) {
 			var s = item.name.split("/").slice(-2);
 			var instrument = s[0];

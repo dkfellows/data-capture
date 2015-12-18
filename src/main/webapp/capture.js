@@ -288,6 +288,7 @@ $(function() {
 			theDir = d.item.value;
 		}
 	}).selectmenu("menuWidget").addClass("overflow");
+	var dialog, form;
 	function createTask() {
 		if (theUser === undefined || theAssay === undefined || theDir === undefined) {
 			alert("please select something in all fields");
@@ -304,26 +305,33 @@ $(function() {
 				name : theDir
 			} ]
 		};
+		dialog.dialog("close");
 		postJSON($("#apiTasks")[0].href, request, function(data) {
 			addTaskRow($("#tasks"), data);
 		});
 		return true;
 	}
-	var dialog = $("#new").dialog({
+	dialog = $("#new").dialog({
 		autoOpen: false,
 		height: 300,
 		width: 350,
 		modal: true,
-		buttons {
+		buttons: {
 			"Create archiving task": createTask,
 			"Cancel": function () {
 				dialog.dialog("close");
 			}
+		},
+		close: function() {
+			form[0].reset();
 		}
 	});
-	$("#submit").button().click(function() {
+	form = dialog.find("form").on("submit", function(event){
+		event.preventDefault();
 		createTask();
-		return false;
+	});
+	$("#create-task").button().on("click", function() {
+		dialog.dialog("open");
 	});
 	getJSON($("#apiUsers")[0].href, function(data) {
 		dejson(data.user).forEach(function(item) {

@@ -232,10 +232,10 @@ function updateProgress() {
 			setTimestamp(end, task["end-time"]);
 		}, function(a) {
 			$("#" + id).remove();
+			var asset = task["created-asset"];
+			if (asset !== undefined)
+				$("#asset_" + id + " a").attr("href", asset).text("Asset");
 		});
-		var asset = task["created-asset"];
-		if (asset !== undefined)
-			$("#asset_" + id + " a").attr("href", asset).text("Asset");
 	}
 	return $(".taskrow").each(function() {
 		updateRow($(this).attr("id"));

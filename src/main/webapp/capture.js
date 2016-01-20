@@ -313,8 +313,8 @@ $(function() {
 	}
 	dialog = $("#new").dialog({
 		autoOpen: false,
-		height: 400,
-		width: 400,
+		height: 'auto',
+		width: '50%',
 		modal: true,
 		buttons: {
 			"Create archiving task": createTask,

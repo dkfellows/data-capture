@@ -40,6 +40,11 @@ public interface JsonMetadataFields {
 	public static final String FILE_TIME = "time";
 	/** Key for the size of the file: used in an individual file record. */
 	public static final String FILE_SIZE = "size";
+	/**
+	 * The direct location for the file on the filestore at the time that this
+	 * record was created. Not guaranteed to stay relevant.
+	 */
+	public static final String FILE_CIFS = "cifsurl";
 	/** Key for the list of files in the overall record. */
 	public static final String FILES = "files";
 	/** Key for the ID for the overall record. */

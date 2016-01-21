@@ -37,6 +37,8 @@ public class TaskStore {
 	AsyncTaskExecutor executor;
 	@Autowired
 	SeekConnector seek;
+	@Value("${cifs.root}")
+	private URL cifsRoot;
 	private Tika tika = new Tika();
 	private static final SimpleDateFormat ISO8601;
 	static {
@@ -105,7 +107,7 @@ public class TaskStore {
 		}
 		if (directory == null)
 			throw new WebApplicationException("no such directory", BAD_REQUEST);
-		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, directory,
+		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot, directory,
 				seek);
 		synchronized (this) {
 			Pair p = new Pair(md, dirs, at, executor.submit(at));

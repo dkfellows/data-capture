@@ -31,6 +31,7 @@ import org.apache.commons.logging.LogFactory;
  * <li>Construct the bagit.
  * <li>Instantiate the files on the Isilon.
  * </ol>
+ * 
  * @author Donal Fellows
  */
 public class ArchiverTask implements Callable<URL> {
@@ -44,6 +45,7 @@ public class ArchiverTask implements Callable<URL> {
 	private final File directoryToArchive;
 	private final File archiveRoot;
 	private final File metastoreRoot;
+	private final URL cifsRoot;
 	private final SeekConnector seek;
 	private volatile int fileCount;
 	private volatile int metaCount;
@@ -56,12 +58,14 @@ public class ArchiverTask implements Callable<URL> {
 	private DateFormat ISO8601;
 
 	public ArchiverTask(MetadataRecorder metadata, File archiveRoot,
-			File metastoreRoot, File directoryToArchive, SeekConnector seek) {
+			File metastoreRoot, URL cifsRoot, File directoryToArchive,
+			SeekConnector seek) {
 		ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		ISO8601.setTimeZone(UTC);
 		this.metadata = metadata;
 		this.archiveRoot = archiveRoot;
 		this.metastoreRoot = metastoreRoot;
+		this.cifsRoot = cifsRoot;
 		this.directoryToArchive = directoryToArchive;
 		this.seek = seek;
 		this.entries = new ArrayList<>();
@@ -139,11 +143,13 @@ public class ArchiverTask implements Callable<URL> {
 
 		setState("finishing");
 
-		File jsonFile = new File(metastoreRoot, directoryToArchive.getName() + ".json");
+		File jsonFile = new File(metastoreRoot, directoryToArchive.getName()
+				+ ".json");
 		try {
 			FileUtils.write(jsonFile, metadata.get(), UTF8);
 		} catch (IOException e) {
-			log.warn("task[" + myID + "] failed to write metadata descriptor to " + jsonFile, e);
+			log.warn("task[" + myID
+					+ "] failed to write metadata descriptor to " + jsonFile, e);
 		}
 		return tellSeek();
 	}
@@ -187,7 +193,8 @@ public class ArchiverTask implements Callable<URL> {
 				copyOneFile(source, dest);
 				ent.setDest(dest);
 			} catch (IOException e) {
-				log.warn("task[" + myID + "] failed to copy " + source + " to " + dest, e);
+				log.warn("task[" + myID + "] failed to copy " + source + " to "
+						+ dest, e);
 			} finally {
 				copyCount++;
 			}
@@ -208,15 +215,19 @@ public class ArchiverTask implements Callable<URL> {
 	}
 
 	/**
-	 * Get the metadata out of the files (identified by {@link #listFiles(File)}).
+	 * Get the metadata out of the files (identified by {@link #listFiles(File)}
+	 * ).
 	 */
 	protected void extractMetadata() {
-		for (Entry ent:entries) {
+		for (Entry ent : entries) {
 			try {
 				log.info("task[" + myID + "] characterising " + ent.getFile());
-				metadata.addFile(ent.getName(), ent.getFile(), ent.getDestination());
+				String cifs = new URL(cifsRoot, ent.getName()).toString();
+				metadata.addFile(ent.getName(), ent.getFile(),
+						ent.getDestination(), cifs);
 			} catch (IOException e) {
-				log.warn("task[" + myID + "] failed to generate metadata for " + ent.dest, e);
+				log.warn("task[" + myID + "] failed to generate metadata for "
+						+ ent.dest, e);
 			} finally {
 				metaCount++;
 			}
@@ -227,7 +238,7 @@ public class ArchiverTask implements Callable<URL> {
 
 	// Construct the actual archive of the data. NOT YET DONE
 	protected void bagItUp() {
-		//TODO
+		// TODO
 	}
 
 	/**
@@ -244,8 +255,8 @@ public class ArchiverTask implements Callable<URL> {
 					metadata.getExperiment(), "metadata.tsv",
 					"CSV document describing files copied from instrument "
 							+ instrument + " to storage at timestamp " + time,
-					"Experimental Results Metadata", "text/tab-separated-values",
-					metadata.getCSV());
+					"Experimental Results Metadata",
+					"text/tab-separated-values", metadata.getCSV());
 		} catch (IOException e) {
 			log.warn("task[" + myID + "] failed to upload metadata to SEEK", e);
 			return null;

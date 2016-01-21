@@ -6,6 +6,7 @@ import static manchester.synbiochem.datacapture.Algorithm.SHA1;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.EXPERIMENT;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILES;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_ARCHIVE;
+import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_CIFS;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_MD5;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_MIME;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_NAME;
@@ -78,16 +79,17 @@ public class MetadataRecorder {
 			throw new RuntimeException("unexpected IO failure", e);
 		}
 		addRecord(EXPERIMENT, USER, TIME, FILE_ARCHIVE, FILE_ORIGIN, FILE_SHA1,
-				FILE_MD5, FILE_MIME, FILE_SIZE, FILE_TIME);
+				FILE_MD5, FILE_MIME, FILE_SIZE, FILE_TIME, FILE_CIFS);
 	}
 
 	/**
-	 * Force there to be exactly 10 columns in the CSV.
+	 * Force there to be exactly 11 columns in the CSV.
 	 */
 	private void addRecord(Object a1, Object a2, Object a3, Object a4,
-			Object a5, Object a6, Object a7, Object a8, Object a9, Object a10) {
+			Object a5, Object a6, Object a7, Object a8, Object a9, Object a10,
+			Object a11) {
 		try {
-			csv.printRecord(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+			csv.printRecord(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
 		} catch (IOException e) {
 			throw new RuntimeException("unexpected IO failure", e);
 		}
@@ -95,7 +97,7 @@ public class MetadataRecorder {
 
 	protected final void addFile(String sha1, String md5, String name,
 			String mimetype, String source, String archived, Date time,
-			long size) {
+			long size, String cifs) {
 		JSONObject f = new JSONObject();
 		f.put(FILE_SHA1, sha1);
 		f.put(FILE_MD5, md5);
@@ -105,9 +107,10 @@ public class MetadataRecorder {
 		f.put(FILE_ARCHIVE, archived);
 		f.put(FILE_TIME, ISO8601.format(time));
 		f.put(FILE_SIZE, size);
+		f.put(FILE_CIFS, cifs);
 		files.add(f);
 		addRecord(getExperiment().url, getUser().url, timestamp, archived,
-				source, sha1, md5, mimetype, size, ISO8601.format(time));
+				source, sha1, md5, mimetype, size, ISO8601.format(time), cifs);
 	}
 
 	/**
@@ -122,12 +125,16 @@ public class MetadataRecorder {
 	 * @param archived
 	 *            The file to add. Will have checksums computed and its MIME
 	 *            type determined.
+	 * @param cifs
+	 *            The direct location for the file on the filestore at the time
+	 *            that this record was created. Not guaranteed to stay relevant.
 	 * @return The archive location to copy the file to.
 	 * @throws IOException
 	 *             If anything goes wrong when computing checksums or MIME
 	 *             types.
 	 */
-	public void addFile(String name, File source, File archived) throws IOException {
+	public void addFile(String name, File source, File archived, String cifs)
+			throws IOException {
 		Digest sha1 = new Digest(SHA1);
 		Digest md5 = new Digest(MD5);
 		byte[] buffer = new byte[BUFFER_SIZE];
@@ -140,8 +147,8 @@ public class MetadataRecorder {
 			}
 		}
 		addFile(sha1.toString(), md5.toString(), name, tika.detect(source),
-				source.getAbsolutePath(), archived.getAbsolutePath(),
-				new Date(source.lastModified()), size);
+				source.getAbsolutePath(), archived.getAbsolutePath(), new Date(
+						source.lastModified()), size, cifs);
 	}
 
 	public void setExperiment(Assay experiment) {

@@ -116,6 +116,32 @@
 					<target>1.7</target>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>com.googlecode.velocity-maven-plugin</groupId>
+				<artifactId>velocity-maven-plugin</artifactId>
+				<version>1.1.0</version>
+				<executions>
+					<execution>
+						<id>process-templates</id>
+						<goals>
+							<goal>velocity</goal>
+						</goals>
+						<phase>generate-resources</phase>
+					</execution>
+				</executions>
+				<configuration>
+					<templateFiles>
+						<directory>src/main/templates</directory>
+						<includes>
+							<include>*.html</include>
+						</includes>
+					</templateFiles>
+					<templateValues>
+						<srcdir>src/main/templates</srcdir>
+					</templateValues>
+					<outputDirectory>${project.build.directory}/${project.build.finalName}</outputDirectory>
+				</configuration>
+			</plugin>
 		</plugins>
 		<pluginManagement>
 			<plugins>
@@ -141,6 +167,31 @@
 					<version>2.10</version>
 					<configuration>
 						<wtpversion>2.0</wtpversion>
+					</configuration>
+				</plugin>
+				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
+				<plugin>
+					<groupId>org.eclipse.m2e</groupId>
+					<artifactId>lifecycle-mapping</artifactId>
+					<version>1.0.0</version>
+					<configuration>
+						<lifecycleMappingMetadata>
+							<pluginExecutions>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>com.googlecode.velocity-maven-plugin</groupId>
+										<artifactId>velocity-maven-plugin</artifactId>
+										<versionRange>[1.0.0,)</versionRange>
+										<goals>
+											<goal>velocity</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<execute />
+									</action>
+								</pluginExecution>
+							</pluginExecutions>
+						</lifecycleMappingMetadata>
 					</configuration>
 				</plugin>
 			</plugins>

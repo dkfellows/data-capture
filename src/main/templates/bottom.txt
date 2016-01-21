@@ -1,0 +1,74 @@
+</div></div></div></div></div></div>
+<div class="builder-module-background-wrapper builder-module-widget-bar-background-wrapper builder-module-5-background-wrapper builder-module-widget-bar-2-background-wrapper builder-module-middle-background-wrapper builder-module-widget-bar-last-background-wrapper builder-module-before-footer-background-wrapper builder-module-after-widget-bar-background-wrapper remove-titles-background-wrapper" id="builder-module-5571cd18f006c-background-wrapper">
+<div class="builder-module-outer-wrapper builder-module-widget-bar-outer-wrapper builder-module-5-outer-wrapper builder-module-widget-bar-2-outer-wrapper builder-module-middle-outer-wrapper builder-module-widget-bar-last-outer-wrapper builder-module-before-footer-outer-wrapper builder-module-after-widget-bar-outer-wrapper remove-titles-outer-wrapper" id="builder-module-5571cd18f006c-outer-wrapper">
+<div class="builder-module builder-module-widget-bar builder-module-5 builder-module-widget-bar-2 builder-module-middle builder-module-widget-bar-last builder-module-before-footer builder-module-after-widget-bar remove-titles clearfix" id="builder-module-5571cd18f006c">
+<div class="builder-module-block-outer-wrapper builder-module-sidebar-outer-wrapper builder-module-column-1-outer-wrapper left clearfix">
+<div class="builder-module-block builder-module-sidebar builder-module-column-1 sidebar left clearfix">
+<div class="widget-wrapper left widget-wrapper-left widget-wrapper-1 clearfix">
+<div class="widget-background-wrapper" id="text-10-background-wrapper">
+<div class="widget widget-2 widget-single clearfix widget_text" id="text-10">
+
+	<div class="textwidget">
+		<a href="http://www.mib.manchester.ac.uk/" target="_blank" title="Manchester Institute of Biotechnology">
+			<img src="http://synbiochem.co.uk/wp-content/uploads/SYNBIOCHEM_Partner_University_of_Manchester.png" title="Manchester Institute of Biotechnology" alt="Manchester Institute of Biotechnology">
+		</a>
+	</div>
+
+</div></div></div></div></div>
+<div class="builder-module-block-outer-wrapper builder-module-sidebar-outer-wrapper builder-module-column-2-outer-wrapper middle clearfix">
+<div class="builder-module-block builder-module-sidebar builder-module-column-2 sidebar middle clearfix">
+<div class="widget-wrapper middle widget-wrapper-middle widget-wrapper-2 clearfix">
+<div class="widget-background-wrapper" id="text-11-background-wrapper">
+<div class="widget widget-2 widget-single clearfix widget_text" id="text-11">
+
+	<div class="textwidget">
+		<a href="http://www.bbsrc.ac.uk/" target="_blank "title="BBSRC">
+			<img src="http://synbiochem.co.uk/wp-content/uploads/SYNBIOCHEM_Partner_BBSRC.png" title="BBSRC" alt="BBSRC">
+		</a>
+	</div>
+
+</div></div></div></div></div>
+<div class="builder-module-block-outer-wrapper builder-module-sidebar-outer-wrapper builder-module-column-3-outer-wrapper right clearfix">
+<div class="builder-module-block builder-module-sidebar builder-module-column-3 sidebar right clearfix">
+<div class="widget-wrapper right widget-wrapper-right widget-wrapper-3 clearfix">
+<div class="widget-background-wrapper" id="text-12-background-wrapper">
+<div class="widget widget-2 widget-single clearfix widget_text" id="text-12">
+
+	<div class="textwidget">
+		<a href="https://www.epsrc.ac.uk/" target="_blank" title="EPSRC">
+			<img src="http://synbiochem.co.uk/wp-content/uploads/SYNBIOCHEM_Partner_EPSRC.png" title="EPSRC" alt="EPSRC">
+		</a>
+	</div>
+
+</div></div></div></div></div></div></div></div>
+<div class="builder-module-background-wrapper builder-module-footer-background-wrapper builder-module-6-background-wrapper builder-module-footer-1-background-wrapper builder-module-bottom-background-wrapper builder-module-last-background-wrapper builder-module-footer-last-background-wrapper builder-module-after-widget-bar-background-wrapper default-module-style-background-wrapper" id="builder-module-5571cd18f00a5-background-wrapper">
+<div class="builder-module-outer-wrapper builder-module-footer-outer-wrapper builder-module-6-outer-wrapper builder-module-footer-1-outer-wrapper builder-module-bottom-outer-wrapper builder-module-last-outer-wrapper builder-module-footer-last-outer-wrapper builder-module-after-widget-bar-outer-wrapper default-module-style-outer-wrapper" id="builder-module-5571cd18f00a5-outer-wrapper">
+<div class="builder-module builder-module-footer builder-module-6 builder-module-footer-1 builder-module-bottom builder-module-last builder-module-footer-last builder-module-after-widget-bar default-module-style clearfix" id="builder-module-5571cd18f00a5">
+<div class="builder-module-block-outer-wrapper builder-module-element-outer-wrapper builder-module-column-1-outer-wrapper single clearfix">
+<div class="builder-module-block builder-module-element builder-module-column-1 clearfix">
+
+	SYNBIOCHEM - Manchester Synthetic Biology Research Centre for Fine and Speciality Chemicals | Copyright &copy; 2016 All Rights Reserved
+	<br />
+	<a href="http://synbiochem.co.uk/contact/" title="Contact SYNBIOCHEM">Contact SYNBIOCHEM</a> |
+	<a href="https://twitter.com/synbiochem/" target="_blank" title="Follow SYNBIOCHEM on Twitter">Follow SYNBIOCHEM on Twitter</a> |
+	<a href="http://synbiochem.co.uk/privacy-cookies/" title="SYNBIOCHEM - Privacy and Cookies">Privacy and Cookies</a>
+
+<script type="text/javascript">
+//<![CDATA[
+	jQuery(document).ready(function() {
+		// Edit 09/05: remove globals and package into Object Literal, and removed the debug function
+		cli_show_cookiebar({
+			html: '<div id="cookie-law-info-bar"><span>This website uses cookies to improve your experience. We\'ll assume you\'re ok with this, but you can opt-out if you wish.<a href="#" id="cookie_action_close_header" class="medium cli-plugin-button cli-plugin-main-button\" >Accept</a> <a href=\"http://synbiochem.co.uk/privacy-cookies" id="CONSTANT_OPEN_URL" target="_new" class="cli-plugin-main-link">Read More</a></span></div>',
+			settings: '{"animate_speed_hide":"500","animate_speed_show":"500","background":"#660099","border":"#ffcc33","border_on":true,"button_1_button_colour":"#57a533","button_1_button_hover":"#468429","button_1_link_colour":"#fff","button_1_as_button":true,"button_2_button_colour":"#333","button_2_button_hover":"#292929","button_2_link_colour":"#ffffff","button_2_as_button":false,"font_family":"inherit","notify_animate_hide":true,"notify_animate_show":false,"notify_div_id":"#cookie-law-info-bar","notify_position_horizontal":"right","notify_position_vertical":"bottom","scroll_close":false,"scroll_close_reload":false,"showagain_tab":false,"showagain_background":"#fff","showagain_border":"#000","showagain_div_id":"#cookie-law-info-again","showagain_x_position":"100px","text":"#ffffff","show_once_yn":false,"show_once":"10000"}'
+		});
+	});
+//]]>
+</script>
+
+<script type='text/javascript' src='http://synbiochem.co.uk/wp-includes/js/comment-reply.min.js'></script>
+<script type='text/javascript' src='http://synbiochem.co.uk/wp-content/themes/Builder-Summit/lib/builder-core/lib/responsive/js/jquery.fitvids-max-width-modification.js'></script>
+<script type='text/javascript' src='http://synbiochem.co.uk/wp-content/themes/Builder-Summit/lib/builder-core/lib/responsive/js/init-fitvids.js'></script>
+<script type='text/javascript' src='http://synbiochem.co.uk/wp-content/themes/Builder-Summit/js/custom_jquery_additions.js'></script>
+</div></div></div></div></div>
+</body>
+</html>

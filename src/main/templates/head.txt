@@ -1,0 +1,17 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+<link rel="stylesheet"
+	href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+<link rel="shortcut icon" href="http://synbiochem.co.uk/wp-content/uploads/builder-favicon/tnHE2AeAx.ico" />
+
+<link rel="stylesheet" href="http://synbiochem.co.uk/wp-content/themes/Builder-Summit/lib/builder-core/css/reset.css" type="text/css" media="screen" />
+<link rel="stylesheet" href="http://synbiochem.co.uk/wp-content/themes/Builder-SYNBIOCHEM/style.css" type="text/css" media="screen" />
+<link rel="stylesheet" href="http://synbiochem.co.uk/wp-content/uploads/it-file-cache/builder-layouts/5571cd18efec4.css?version=b688b75e376e21b3b0eada68c57232ed" type="text/css" media="screen" />
+<link rel="stylesheet" href="http://synbiochem.co.uk/wp-content/themes/Builder-Summit/lib/builder-core/css/structure.css?ver=2" type="text/css" media="screen" />
+<link rel='stylesheet' id='dashicons-css'  href='http://synbiochem.co.uk/wp-includes/css/dashicons.min.css' type='text/css' media='all' />
+<link rel='stylesheet' id='Builder-Summit-Fonts-css'  href='https://fonts.googleapis.com/css?family=Montserrat%3A400%2C700%7COpen+Sans%3A400%2C300%2C700%2C300italic%2C400italic%2C700italic%3B' type='text/css' media='all' />
+<link rel='stylesheet' id='redux-google-fonts-seed_cspv4-css'  href='https://fonts.googleapis.com/css?family=Open+Sans%3A700%2C300%2C400' type='text/css' media='all' />
+<link rel='stylesheet' id='it-builder-style-556f04666b8a0-css'  href='http://synbiochem.co.uk/wp-content/uploads/builder-style-manager/synbiochem.css' type='text/css' media='all' />

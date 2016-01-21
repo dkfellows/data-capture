@@ -1,0 +1,42 @@
+</head><body>
+
+<!-- Copied from SynBioChem site -->
+<div class="builder-module-outer-wrapper builder-module-image-outer-wrapper builder-module-1-outer-wrapper builder-module-image-1-outer-wrapper builder-module-top-outer-wrapper builder-module-image-last-outer-wrapper builder-module-before-navigation-outer-wrapper default-module-style-outer-wrapper" id="builder-module-5571cd18eff14-outer-wrapper">
+<div class="builder-module builder-module-image builder-module-1 builder-module-image-1 builder-module-top builder-module-image-last builder-module-before-navigation default-module-style clearfix" id="builder-module-5571cd18eff14">
+<div class="builder-module-block-outer-wrapper builder-module-element-outer-wrapper builder-module-column-1-outer-wrapper left clearfix">
+<div class="builder-module-block builder-module-element builder-module-column-1 clearfix">
+
+	<a href="http://synbiochem.co.uk/">
+		<img src="http://synbiochem.co.uk/wp-content/uploads/SYNBIOCHEM_Manchester_Synthetic_Biology_Research_Centre_logo1.png"
+			alt="SYNBIOCHEM - Manchester Synthetic Biology Research Centre for Fine and Speciality Chemicals" />
+	</a>
+
+</div></div>
+<div class="builder-module-block-outer-wrapper builder-module-sidebar-outer-wrapper builder-module-column-2-outer-wrapper right clearfix">
+<div class="builder-module-block builder-module-sidebar builder-module-column-2 builder-module-sidebar-1-right builder-module-sidebar-with-element sidebar right clearfix">
+<div class="widget-wrapper widget-wrapper-single single widget-wrapper-1 clearfix">
+<div class="widget-background-wrapper" id="text-8-background-wrapper">
+<div class="widget widget-2 widget-single clearfix widget_text" id="text-8">
+
+	<div class="textwidget">
+		<div id="socialicons">
+			<div class="right">
+				<a href="http://synbiochem.co.uk/contact/" title="Contact SYNBIOCHEM">
+					<img alt="Contact SYNBIOCHEM" src="http://synbiochem.co.uk/wp-content/uploads/synbiochem_icon_contact.png" width="50px" height="50px">
+				</a>
+			</div>
+			<div class="right">
+				<a href="https://twitter.com/synbiochem" target="_blank" title="Follow SYNBIOCHEM on Twitter">
+					<img alt="Follow SYNBIOCHEM on Twitter" src="http://synbiochem.co.uk/wp-content/uploads/synbiochem_icon_twitter.png" width="45px" height="45px">
+				</a>
+			</div>
+		</div>
+	</div>
+
+</div></div></div></div></div></div></div>
+<div class="builder-module-background-wrapper builder-module-content-background-wrapper builder-module-3-background-wrapper builder-module-content-1-background-wrapper builder-module-middle-background-wrapper builder-module-content-last-background-wrapper builder-module-before-widget-bar-background-wrapper builder-module-after-navigation-background-wrapper default-module-style-background-wrapper" id="builder-module-5571cd18efffa-background-wrapper">
+<div class="builder-module-outer-wrapper builder-module-content-outer-wrapper builder-module-3-outer-wrapper builder-module-content-1-outer-wrapper builder-module-middle-outer-wrapper builder-module-content-last-outer-wrapper builder-module-before-widget-bar-outer-wrapper builder-module-after-navigation-outer-wrapper default-module-style-outer-wrapper" id="builder-module-5571cd18efffa-outer-wrapper">
+<div class="builder-module builder-module-content builder-module-3 builder-module-content-1 builder-module-middle builder-module-content-last builder-module-before-widget-bar builder-module-after-navigation default-module-style clearfix" id="builder-module-5571cd18efffa">
+<div class="builder-module-block-outer-wrapper builder-module-element-outer-wrapper builder-module-column-1-outer-wrapper single clearfix">
+<div class="builder-module-block builder-module-element builder-module-column-1 clearfix">
+<div id="post-15" class="post-15 page type-page status-publish has-post-thumbnail hentry">

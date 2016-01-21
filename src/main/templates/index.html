@@ -1,0 +1,75 @@
+#include("$srcdir/head.txt")
+
+<title>SynBioChem Data Capture Service</title>
+<link id="apiUsers" href="api/users">
+<link id="apiAssays" href="api/assays">
+<link id="apiDirs" href="api/directories">
+<link id="apiTasks" href="api/tasks">
+<script type="text/javascript" src="capture.js"></script>
+<link rel="stylesheet" href="capture.css">
+
+#include("$srcdir/top.txt")
+
+<h1>Data Capture Service</h1>
+
+<p>
+	This is the SynBioChem experimental data capture and archiving service.
+	It exists to record the primary data from experiments <i>once those
+		experiments have completed</i> and preserve the data for future reference.
+	It arranges for the data to be copied to the main working storage
+	system (the <a href="http://sbc-ds1.mib.manchester.ac.uk:5000/">Synology
+		NAS</a>) and for <abbr title="not yet implemented">preservation
+		archives to be built of the data</abbr>, and will record in the SynBioChem
+	SEEK where the data has been stored.
+</p>
+
+<div id="new" title="New archive task">
+	<p>
+		Please select who did the experiment, what SEEK Assay this is part of,
+		and where the data to record is located. Note that only existing
+		assays are selectable here (this page <abbr title="every 30 seconds">periodically
+			polls</abbr>), and the assays must be shared for update with the whole
+		SynBioChem team.
+	</p>
+	<form id="newTask">
+		<fieldset>
+			<label for="users">Responsible Scientist:</label>
+			<select id="users" style="width: 90%">
+				<option selected>Choose...</option>
+			</select>
+			<!-- ============================================================ -->
+			<label for="assays">SEEK Assay:</label>
+			<select id="assays" style="width: 90%">
+				<option selected>Choose...</option>
+			</select>
+			<!-- ============================================================ -->
+			<label for="dirs">Data Directory:</label>
+			<select id="dirs" style="width: 90%">
+				<option selected>Choose...</option>
+			</select>
+			<!-- ============================================================ -->
+			<input type="submit" tabindex="-1"
+				style="position: absolute; top: -1000px">
+		</fieldset>
+	</form>
+</div>
+
+<div id="current">
+	<h2>Current archiving tasks</h2>
+	<table id="tasks" style="width: 100%; font-size: 80%;">
+		<tr id="tasksHeading">
+			<th>ID
+			<th>Scientist
+			<th>Assay
+			<th>Started
+			<th>Progress
+			<th>Finished
+			<th>Registered
+			<th>
+				<!-- empty -->
+		</tr>
+	</table>
+	<button id="create-task">Create new archiving task</button>
+</div>
+
+#include("$srcdir/bottom.txt")

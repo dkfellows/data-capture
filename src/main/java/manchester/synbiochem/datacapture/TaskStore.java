@@ -5,6 +5,7 @@ import static javax.ws.rs.core.Response.Status.GONE;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 
 import java.io.File;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.text.SimpleDateFormat;
@@ -38,7 +39,7 @@ public class TaskStore {
 	@Autowired
 	SeekConnector seek;
 	@Value("${cifs.root}")
-	private URL cifsRoot;
+	private URI cifsRoot;
 	private Tika tika = new Tika();
 	private static final SimpleDateFormat ISO8601;
 	static {

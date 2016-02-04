@@ -6,6 +6,7 @@ import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.FileAlreadyExistsException;
@@ -45,7 +46,7 @@ public class ArchiverTask implements Callable<URL> {
 	private final File directoryToArchive;
 	private final File archiveRoot;
 	private final File metastoreRoot;
-	private final URL cifsRoot;
+	private final URI cifsRoot;
 	private final SeekConnector seek;
 	private volatile int fileCount;
 	private volatile int metaCount;
@@ -58,7 +59,7 @@ public class ArchiverTask implements Callable<URL> {
 	private DateFormat ISO8601;
 
 	public ArchiverTask(MetadataRecorder metadata, File archiveRoot,
-			File metastoreRoot, URL cifsRoot, File directoryToArchive,
+			File metastoreRoot, URI cifsRoot, File directoryToArchive,
 			SeekConnector seek) {
 		ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		ISO8601.setTimeZone(UTC);
@@ -222,7 +223,7 @@ public class ArchiverTask implements Callable<URL> {
 		for (Entry ent : entries) {
 			try {
 				log.info("task[" + myID + "] characterising " + ent.getFile());
-				String cifs = new URL(cifsRoot, ent.getName()).toString();
+				String cifs = cifsRoot.resolve(ent.getName()).toString();
 				metadata.addFile(ent.getName(), ent.getFile(),
 						ent.getDestination(), cifs);
 			} catch (IOException e) {

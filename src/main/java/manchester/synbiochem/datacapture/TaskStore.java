@@ -98,18 +98,8 @@ public class TaskStore {
 		md.setUser(user);
 		assert assay != null && assay.url != null;
 		md.setExperiment(assay);
-		File directory = null;
-		for (String d : dirs) {
-			File dir = new File(d);
-			if (dir.exists()) {
-				directory = dir;
-				break;
-			}
-		}
-		if (directory == null)
-			throw new WebApplicationException("no such directory", BAD_REQUEST);
-		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot, directory,
-				seek);
+		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot,
+				existingDirectory(dirs), seek);
 		synchronized (this) {
 			Pair p = new Pair(md, dirs, at, executor.submit(at));
 			String key = "task" + (++count);
@@ -118,6 +108,24 @@ public class TaskStore {
 			at.setJavaTask(p.result);
 			return key;
 		}
+	}
+
+	/**
+	 * Get the first existing directory from the list.
+	 * 
+	 * @param dirs
+	 *            List of names of directories to look at.
+	 * @return The directory
+	 * @throws WebApplicationException
+	 *             If no suitable directory is present.
+	 */
+	private File existingDirectory(List<String> dirs) {
+		for (String d : dirs) {
+			File dir = new File(d);
+			if (dir.exists())
+				return dir;
+		}
+		throw new WebApplicationException("no such directory", BAD_REQUEST);
 	}
 
 	/**

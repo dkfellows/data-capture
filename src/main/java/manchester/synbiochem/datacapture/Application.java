@@ -8,6 +8,7 @@ import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.Path;
@@ -19,6 +20,8 @@ import javax.ws.rs.core.UriInfo;
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
 import manchester.synbiochem.datacapture.SeekConnector.User;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Path("/")
@@ -30,6 +33,7 @@ public class Application implements Interface {
 	TaskStore tasks;
 	@Autowired
 	DirectoryLister lister;
+	private Log log = LogFactory.getLog(getClass());
 
 	@Override
 	public String status() {
@@ -123,6 +127,7 @@ public class Application implements Interface {
 					"need at least one directory to archive", BAD_REQUEST);
 
 		String id = tasks.newTask(user, assay, dirs);
+		log.info("created task " + id + " to archive " + dirs.get(0));
 		UriBuilder ub = ui.getAbsolutePathBuilder().path("{id}");
 		return created(ub.build(id)).entity(tasks.describeTask(id, ub))
 				.type("application/json").build();
@@ -132,7 +137,11 @@ public class Application implements Interface {
 	public Response deleteTask(String id, UriInfo ui) {
 		if (id == null || id.isEmpty())
 			throw new WebApplicationException(BAD_REQUEST);
-		tasks.deleteTask(id);
+		try {
+			tasks.deleteTask(id);
+		} catch (InterruptedException | ExecutionException e) {
+			throw new WebApplicationException("problem when cancelling task", e);
+		}
 		return seeOther(ui.getBaseUriBuilder().path("tasks").build()).build();
 	}
 }

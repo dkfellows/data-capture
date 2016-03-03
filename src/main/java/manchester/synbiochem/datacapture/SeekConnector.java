@@ -15,6 +15,7 @@ import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
@@ -81,9 +82,10 @@ public class SeekConnector {
 		return builder;
 	}
 
+	@SuppressWarnings("serial")
 	@XmlRootElement(name = "user")
 	@XmlType(propOrder = {})
-	public static class User {
+	public static class User implements Serializable {
 		@XmlElement
 		public String name;
 		@XmlElement
@@ -103,9 +105,10 @@ public class SeekConnector {
 		}
 	}
 
+	@SuppressWarnings("serial")
 	@XmlRootElement(name = "assay")
 	@XmlType(propOrder = {})
-	public static class Assay {
+	public static class Assay implements Serializable {
 		@XmlElement
 		public String name;
 		@XmlElement

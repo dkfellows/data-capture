@@ -271,25 +271,16 @@ function updateAssays() {
 
 /** Start everything going on page load */
 $(function() {
-	var theUser, theAssay, theDir;
+	var theUsers = $("#users"), theAssays = $("#assays"), theDirs = $("#dirs");
 
-	$("#users").selectmenu({
-		change : function(e, d) {
-			theUser = d.item.value;
-		}
-	}).selectmenu("menuWidget").addClass("overflow");
-	$("#assays").selectmenu({
-		change : function(e, d) {
-			theAssay = d.item.value;
-		}
-	}).selectmenu("menuWidget").addClass("overflow");
-	$("#dirs").selectmenu({
-		change : function(e, d) {
-			theDir = d.item.value;
-		}
-	}).selectmenu("menuWidget").addClass("overflow");
+	theUsers.selectmenu().selectmenu("menuWidget").addClass("overflow");
+	theAssays.selectmenu().selectmenu("menuWidget").addClass("overflow");
+	theDirs.selectmenu().selectmenu("menuWidget").addClass("overflow");
 	var dialog, form;
 	function createTask() {
+		var theUser = theUsers.val();
+		var theAssay = theAssays.val();
+		var theDir = theDirs.val();
 		if (theUser === undefined || theAssay === undefined || theDir === undefined) {
 			alert("please select something in all fields");
 			return false;
@@ -335,20 +326,20 @@ $(function() {
 	});
 	getJSON($("#apiUsers")[0].href, function(data) {
 		dejson(data.user).forEach(function(item) {
-			addOption($("#users"), item.id, item.url, item.name).
+			addOption(theUsers, item.id, item.url, item.name).
 				attr("sort-key", item.name);
 		});
-		sortChildren($("#assays"), "sort-key");
+		sortChildren(theUsers, "sort-key");
 	});
 	getJSON($("#apiAssays")[0].href, function(data) {
 		dejson(data.assay).forEach(function(item) {
-			addOption($("#assays"), item.id, item.url, item.name).
+			addOption(theAssays, item.id, item.url, item.name).
 				attr("sort-key", item.name);
 		});
-		sortChildren($("#assays"), "sort-key");
+		sortChildren(theAssays, "sort-key");
 	});
 	getJSON($("#apiDirs")[0].href, function(data) {
-		$("#dirs").children().each(function(){
+		theDirs.children().each(function(){
 			var a = $(this).attr("sort-key");
 			if (a === undefined) {
 				$(this).attr("sort-key", "");
@@ -358,11 +349,11 @@ $(function() {
 			var s = item.name.split("/").slice(-2);
 			var instrument = s[0];
 			var output = s[1];
-			addOption($("#dirs"), item.id, item.name, "Instrument: "
+			addOption(theDirs, item.id, item.name, "Instrument: "
 					+ instrument + " Dir: " + output).
 				attr("sort-key", item.name);
 		});
-		sortChildren($("#dirs"), "sort-key");
+		sortChildren(theDirs, "sort-key");
 	});
 	getJSON($("#apiTasks")[0].href, function(data) {
 		dejson(data.task).forEach(function(t) {

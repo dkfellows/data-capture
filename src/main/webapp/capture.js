@@ -278,9 +278,9 @@ $(function() {
 	theDirs.selectmenu().selectmenu("menuWidget").addClass("overflow");
 	var dialog, form;
 	function createTask() {
-		var theUser = theUsers.val();
-		var theAssay = theAssays.val();
-		var theDir = theDirs.val();
+		var theUser = $("#users option:selected").val();
+		var theAssay = $("#assays option:selected").val();
+		var theDir = $("#dirs option:selected").val();
 		if (theUser === undefined || theAssay === undefined || theDir === undefined) {
 			alert("please select something in all fields");
 			return false;

@@ -65,7 +65,13 @@ public class TaskStore {
 
 	@PostConstruct
 	void loadDoneTasks() {
-		for (File f : savedTasksRoot.listFiles())
+		File[] files = savedTasksRoot.listFiles();
+		if (files == null)
+			return;
+		for (File f : files) {
+			// Skip anything untoward
+			if (f.getName().startsWith(".") || !f.isFile())
+				continue;
 			try (InputStream fis = new FileInputStream(f);
 					ObjectInputStream ois = new ObjectInputStream(fis)) {
 				FinishedTask ft = (FinishedTask) ois.readObject();
@@ -75,6 +81,7 @@ public class TaskStore {
 						+ "; deleting...", e);
 				f.delete();
 			}
+		}
 	}
 
 	public interface Task {

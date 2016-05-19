@@ -215,6 +215,26 @@ public class ArchiverTask implements Callable<URL> {
 		}
 	}
 
+	static String resolveToURI(URI base, String part) {
+		StringBuilder sb = new StringBuilder(part.length());
+		for (char ch : part.toCharArray()) {
+			if (Character.isAlphabetic(ch) || Character.isDigit(ch)) {
+				sb.append(ch);
+				continue;
+			} else if (ch == ' ') {
+				sb.append('+');
+				continue;
+			}
+			String c = new String(new char[] { ch });
+			if ("/_-!.~'()*".contains(c))
+				sb.append(c);
+			else
+				for (byte b : c.getBytes(UTF8))
+					sb.append(String.format("%%%02X", 0xFF & b));
+		}
+		return base.resolve(sb.toString()).toString();
+	}
+
 	/**
 	 * Get the metadata out of the files (identified by {@link #listFiles(File)}
 	 * ).
@@ -223,7 +243,7 @@ public class ArchiverTask implements Callable<URL> {
 		for (Entry ent : entries) {
 			try {
 				log.info("task[" + myID + "] characterising " + ent.getFile());
-				String cifs = cifsRoot.resolve(ent.getName()).toString();
+				String cifs = resolveToURI(cifsRoot, ent.getName());
 				metadata.addFile(ent.getName(), ent.getFile(),
 						ent.getDestination(), cifs);
 			} catch (IOException e) {

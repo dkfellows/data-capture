@@ -237,35 +237,39 @@ function updateProgress() {
 				$("#asset_" + id + " a").attr("href", asset).text("Asset");
 		});
 	}
-	return $(".taskrow").each(function() {
-		updateRow($(this).attr("id"));
-	});
+	var rows = $(".taskrow");
+	for (var i=0 ; i<rows.length ; i++) {
+		updateRow(rows[i].getAttribute("id"));
+	}
+	return;
 }
 
 function updateDirs() {
+	var context = $("#dirs");
 	getJSON($("#apiDirs")[0].href, function(data) {
 		dejson(data.directory).forEach(function(item) {
-			if ($("#" + item.id).length)
+			if (document.getElementById(item["@id"]) !== null)
 				return;
 			var s = item.name.split("/").slice(-2);
 			var instrument = s[0];
 			var output = s[1];
-			addOption($("#dirs"), item.id, item.name, "Instrument: "
+			addOption(context, item.id, item.name, "Instrument: "
 					+ instrument + " Dir: " + output).
 				attr("sort-key", item.name);
 		});
-		sortChildren($("#dirs"), "sort-key");
+		sortChildren(context, "sort-key");
 	});
 }
 function updateAssays() {
+	var context = $("#assays");
 	getJSON($("#apiAssays")[0].href, function(data) {
 		dejson(data.directory).forEach(function(item) {
 			if ($("#" + item.id).length)
 				return;
-			addOption($("#assays"), item.id, item.url, item.name).
+			addOption(context, item.id, item.url, item.name).
 				attr("sort-key", item.name);
 		});
-		sortChildren($("#assays"), "sort-key");
+		sortChildren(context, "sort-key");
 	});
 }
 
@@ -349,15 +353,16 @@ $(function() {
 			var s = item.name.split("/").slice(-2);
 			var instrument = s[0];
 			var output = s[1];
-			addOption(theDirs, item.id, item.name, "Instrument: "
+			addOption(theDirs, item["@id"], item.name, "Instrument: "
 					+ instrument + " Dir: " + output).
 				attr("sort-key", item.name);
 		});
 		sortChildren(theDirs, "sort-key");
 	});
 	getJSON($("#apiTasks")[0].href, function(data) {
+		var context = $("#tasks");
 		dejson(data.task).forEach(function(t) {
-			addTaskRow($("#tasks"), t);
+			addTaskRow(context, t);
 		});
 	});
 	setInterval(updateProgress, 10000);

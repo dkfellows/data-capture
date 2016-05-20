@@ -115,7 +115,10 @@ public class TaskStore {
 				existingDirectory(dirs), seek);
 		synchronized (this) {
 			Future<URL> foo = executor.submit(at);
-			String key = "task" + (++count);
+			String key;
+			do {
+				key = "task" + (++count);
+			} while (tasks.containsKey(key) || doneTasks.containsKey(key));
 			ActiveTask p = new ActiveTask(key, md, dirs, at, foo);
 			tasks.put(key, p);
 			at.setJavaTask(foo);

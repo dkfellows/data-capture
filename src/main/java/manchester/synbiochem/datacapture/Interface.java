@@ -1,6 +1,7 @@
 package manchester.synbiochem.datacapture;
 
 import static manchester.synbiochem.datacapture.Constants.JSON;
+import static org.apache.commons.codec.digest.DigestUtils.md5Hex;
 
 import java.io.File;
 import java.net.URI;
@@ -20,6 +21,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlSchemaType;
@@ -120,11 +122,14 @@ public interface Interface {
 				synchronized(ISO8601) {
 					modTime = ISO8601.format(new Date(f.lastModified()));
 				}
+			id = "dir_" + md5Hex(d);
 		}
 		@XmlElement(name = "modification-time")
 		public String modTime;
 		@XmlElement
 		public String name;
+		@XmlAttribute
+		public String id;
 	}
 
 	@XmlRootElement(name = "tasks")

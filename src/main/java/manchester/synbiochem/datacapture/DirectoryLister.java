@@ -7,6 +7,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.annotation.PostConstruct;
 import javax.ws.rs.WebApplicationException;
@@ -21,22 +22,9 @@ public class DirectoryLister {
 	private List<File> roots;
 
 	@Value("#{'${instrument.directories}'.split(',')}")
-	public void setRoots(List<String> rootNames) {
-		List<File> newRoots = new ArrayList<>();
-		for (String r : rootNames) {
-			File root = new File(r);
-			File[] list = root.listFiles();
-			if (list == null)
-				continue;
-			for (File item : list)
-				if (item != null && item.isDirectory()
-						&& !item.getName().startsWith(".")) {
-					log.info("adding source root: " + item);
-					newRoots.add(item);
-				}
-		}
-		roots = newRoots;
-	}
+	private List<String> rootNames;
+	@Value("#{'${instrument.directories.suppress}'.split(',')}")
+	private List<String> suppressNames;
 
 	private List<String> subdirectories() {
 		List<String> subdirs = new ArrayList<>();
@@ -82,7 +70,7 @@ public class DirectoryLister {
 
 	public List<String> getSubdirectories(List<Directory> directory) {
 		List<String> real = new ArrayList<>();
-		HashSet<String> sd = new HashSet<>(getSubdirectories());
+		Set<String> sd = new HashSet<>(getSubdirectories());
 		for (Directory dir : directory) {
 			String name = dir.name;
 			if (!sd.contains(name))
@@ -95,6 +83,22 @@ public class DirectoryLister {
 
 	@PostConstruct
 	private void prebuildCache() {
+		List<File> newRoots = new ArrayList<>();
+		Set<String> suppress = new HashSet<>(suppressNames);
+		for (String r : rootNames) {
+			File root = new File(r.trim());
+			File[] list = root.listFiles();
+			if (list == null)
+				continue;
+			for (File item : list)
+				if (item != null && item.isDirectory()
+						&& !item.getName().startsWith(".")
+						&& !suppress.contains(item.getAbsolutePath())) {
+					log.info("adding source root: " + item);
+					newRoots.add(item);
+				}
+		}
+		roots = newRoots;
 		getSubdirectories();
 	}
 }

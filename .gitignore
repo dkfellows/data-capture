@@ -4,3 +4,7 @@
 .settings
 .springBeans
 .DS_Store
+/jarbits/
+/testdata/
+*keystore*
+/pass.txt

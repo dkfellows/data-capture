@@ -244,17 +244,26 @@ function updateProgress() {
 	return;
 }
 
+function getInstrumentAndDir(item) {
+	var s = item.name.split("/").slice(-2);
+	var output = s[1];
+	s = item.name.split("/");
+	var inst = s[2];
+	return {
+		instrument : inst,
+		dir : output
+	};
+}
+
 function updateDirs() {
 	var context = $("#dirs");
 	getJSON($("#apiDirs")[0].href, function(data) {
 		dejson(data.directory).forEach(function(item) {
 			if (document.getElementById(item["@id"]) !== null)
 				return;
-			var s = item.name.split("/").slice(-2);
-			var instrument = s[0];
-			var output = s[1];
+			var info = getInstrumentAndDir(item);
 			addOption(context, item.id, item.name, "Instrument: "
-					+ instrument + " Dir: " + output).
+					+ info.instrument + " Dir: " + info.dir).
 				attr("sort-key", item.name);
 		});
 		sortChildren(context, "sort-key");
@@ -350,11 +359,9 @@ $(function() {
 			}
 		});
 		dejson(data.directory).forEach(function(item) {
-			var s = item.name.split("/").slice(-2);
-			var instrument = s[0];
-			var output = s[1];
+			var info = getInstrumentAndDir(item);
 			addOption(theDirs, item["@id"], item.name, "Instrument: "
-					+ instrument + " Dir: " + output).
+					+ info.instrument + " Dir: " + info.dir).
 				attr("sort-key", item.name);
 		});
 		sortChildren(theDirs, "sort-key");

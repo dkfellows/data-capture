@@ -26,6 +26,12 @@ public class DirectoryLister {
 	@Value("#{'${instrument.directories.suppress}'.split(',')}")
 	private List<String> suppressNames;
 
+	/**
+	 * The core of the directory listing engine. Gets all directories that are
+	 * subdirectories of the directories in the {@link #roots} list.
+	 * 
+	 * @return List of directory names. Each of them is an absolute pathname.
+	 */
 	private List<String> subdirectories() {
 		List<String> subdirs = new ArrayList<>();
 		for (File root : roots) {
@@ -42,7 +48,7 @@ public class DirectoryLister {
 	}
 
 	/** The time between listing the directories */
-	private static final long LIFE_INTERVAL = 30000L;
+	public static final long LIFE_INTERVAL = 30000L;
 	private List<String> subs;
 	private long subtime;
 	/**
@@ -51,6 +57,11 @@ public class DirectoryLister {
 	 */
 	private static final long LONG_RATIO = 30L;
 
+	/**
+	 * Get the subdirectories that we have vetted as being acceptable places to
+	 * perform archiving from. The results are internally cached for
+	 * {@value #LIFE_INTERVAL} milliseconds.
+	 */
 	public List<String> getSubdirectories() {
 		long now = currentTimeMillis();
 		if (subtime + LIFE_INTERVAL < now) {
@@ -68,6 +79,17 @@ public class DirectoryLister {
 		return subs;
 	}
 
+	/**
+	 * Get the subdirectories from our vetted list that match up with the
+	 * requested list of directories.
+	 * 
+	 * @param directory
+	 *            List of directory descriptor structures taken from the webapp
+	 *            API.
+	 * @return List of directory names.
+	 * @throws WebApplicationException
+	 *             If any of the vetting steps fail.
+	 */
 	public List<String> getSubdirectories(List<Directory> directory) {
 		List<String> real = new ArrayList<>();
 		Set<String> sd = new HashSet<>(getSubdirectories());

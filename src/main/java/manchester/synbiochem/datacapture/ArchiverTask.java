@@ -191,8 +191,7 @@ public class ArchiverTask implements Callable<URL> {
 			File dest = new File(archiveRoot, ent.getName());
 			try {
 				log.info("task[" + myID + "] copying " + source);
-				copyOneFile(source, dest);
-				ent.setDest(dest);
+				ent.setDest(copyOneFile(source, dest));
 			} catch (IOException e) {
 				log.warn("task[" + myID + "] failed to copy " + source + " to "
 						+ dest, e);
@@ -204,7 +203,7 @@ public class ArchiverTask implements Callable<URL> {
 		}
 	}
 
-	private void copyOneFile(File source, File dest) throws IOException {
+	private File copyOneFile(File source, File dest) throws IOException {
 		File dir = dest.getParentFile();
 		if (!dir.exists())
 			dir.mkdirs();
@@ -213,6 +212,7 @@ public class ArchiverTask implements Callable<URL> {
 		} catch (FileAlreadyExistsException e) {
 			// ignore; assume it is the same thing
 		}
+		return dest;
 	}
 
 	static String resolveToURI(URI base, String part) {
@@ -236,6 +236,15 @@ public class ArchiverTask implements Callable<URL> {
 	}
 
 	/**
+	 * Get the metadata out of a single file.
+	 */
+	private void extractMetadatum(Entry ent) throws IOException {
+		String cifs = resolveToURI(cifsRoot, ent.getName());
+		metadata.addFile(ent.getName(), ent.getFile(), ent.getDestination(),
+				cifs);
+	}
+
+	/**
 	 * Get the metadata out of the files (identified by {@link #listFiles(File)}
 	 * ).
 	 */
@@ -243,9 +252,7 @@ public class ArchiverTask implements Callable<URL> {
 		for (Entry ent : entries) {
 			try {
 				log.info("task[" + myID + "] characterising " + ent.getFile());
-				String cifs = resolveToURI(cifsRoot, ent.getName());
-				metadata.addFile(ent.getName(), ent.getFile(),
-						ent.getDestination(), cifs);
+				extractMetadatum(ent);
 			} catch (IOException e) {
 				log.warn("task[" + myID + "] failed to generate metadata for "
 						+ ent.dest, e);
@@ -259,7 +266,11 @@ public class ArchiverTask implements Callable<URL> {
 
 	// Construct the actual archive of the data. NOT YET DONE
 	protected void bagItUp() {
-		// TODO
+		try {
+			// TODO
+		} finally {
+			
+		}
 	}
 
 	/**

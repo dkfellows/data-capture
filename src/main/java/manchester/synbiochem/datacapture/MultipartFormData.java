@@ -55,12 +55,14 @@ class MultipartFormData {
 	}
 
 	public String length() {
-		assert bytes != null : "form must be built before use";
+		if (bytes == null)
+			throw new IllegalStateException("form must be built before use");
 		return Integer.toString(bytes.length);
 	}
 
 	public byte[] content() {
-		assert bytes != null : "form must be built before use";
+		if (bytes == null)
+			throw new IllegalStateException("form must be built before use");
 		return bytes;
 	}
 }

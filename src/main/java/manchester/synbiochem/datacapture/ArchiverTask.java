@@ -255,7 +255,7 @@ public class ArchiverTask implements Callable<URL> {
 				extractMetadatum(ent);
 			} catch (IOException e) {
 				log.warn("task[" + myID + "] failed to generate metadata for "
-						+ ent.dest, e);
+						+ ent.getDestination(), e);
 			} finally {
 				metaCount++;
 			}
@@ -300,7 +300,7 @@ public class ArchiverTask implements Callable<URL> {
 	 * 
 	 * @author Donal Fellows
 	 */
-	public static class Entry {
+	static class Entry {
 		public Entry(String name, File file) {
 			if (name == null || file == null)
 				throw new IllegalArgumentException("arguments must not be null");

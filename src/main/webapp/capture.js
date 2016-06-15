@@ -269,16 +269,17 @@ function updateDirs() {
 		sortChildren(context, "sort-key");
 	});
 }
+function getAssayTitle(assay) {
+	return "Project: '" + assay["project-name"] + "' Study: '"
+			+ assay["study-name"] + "' Assay: '" + assay["name"] + "'";
+}
 function updateAssays() {
 	var context = $("#assays");
 	getJSON($("#apiAssays")[0].href, function(data) {
 		dejson(data.directory).forEach(function(item) {
 			if ($("#" + item.id).length)
 				return;
-					var name = "Project: '" + item["project-name"]
-							+ "' Study: '" + item["study-name"] + "' Assay: '"
-							+ item.name + "'";
-			addOption(context, item.id, item.url, name).
+			addOption(context, item.id, item.url, getAssayTitle(item)).
 				attr("sort-key", item.name);
 		});
 		sortChildren(context, "sort-key");
@@ -349,7 +350,7 @@ $(function() {
 	});
 	getJSON($("#apiAssays")[0].href, function(data) {
 		dejson(data.assay).forEach(function(item) {
-			addOption(theAssays, item.id, item.url, item.name).
+			addOption(theAssays, item.id, item.url, getAssayTitle(item)).
 				attr("sort-key", item.name);
 		});
 		sortChildren(theAssays, "sort-key");

@@ -275,7 +275,10 @@ function updateAssays() {
 		dejson(data.directory).forEach(function(item) {
 			if ($("#" + item.id).length)
 				return;
-			addOption(context, item.id, item.url, item.name).
+					var name = "Project: '" + item["project-name"]
+							+ "' Study: '" + item["study-name"] + "' Assay: '"
+							+ item.name + "'";
+			addOption(context, item.id, item.url, name).
 				attr("sort-key", item.name);
 		});
 		sortChildren(context, "sort-key");

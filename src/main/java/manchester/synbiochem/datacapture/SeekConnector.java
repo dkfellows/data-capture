@@ -373,8 +373,9 @@ public class SeekConnector {
 
 	@PostConstruct
 	private void firstFetch() {
-		getUsers();
-		getAssays();
+		// write this information into the log, deliberately
+		log.info("there are " + getUsers().size() + " users");
+		log.info("there are " + getAssays().size() + " assays");
 	}
 
 	private String getAuthToken() throws IOException {

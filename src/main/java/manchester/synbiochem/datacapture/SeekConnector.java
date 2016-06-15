@@ -33,6 +33,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.ws.rs.WebApplicationException;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlSchemaType;
@@ -116,6 +119,21 @@ public class SeekConnector {
 		@XmlElement(required = true)
 		@XmlSchemaType(name = "anyUri")
 		public URL url;
+		@XmlElement(name = "project-name")
+		String projectName;
+		@XmlElement(name = "project-url")
+		@XmlSchemaType(name = "anyUri")
+		public URL projectUrl;
+		@XmlElement(name = "investigation-name")
+		String investigationName;
+		@XmlElement(name = "investigation-url")
+		@XmlSchemaType(name = "anyUri")
+		public URL investigationUrl;
+		@XmlElement(name = "study-name")
+		String studyName;
+		@XmlElement(name = "study-url")
+		@XmlSchemaType(name = "anyUri")
+		public URL studyUrl;
 
 		public Assay() {
 		}
@@ -269,6 +287,66 @@ public class SeekConnector {
 		throw new WebApplicationException("no such assay", BAD_REQUEST);
 	}
 
+	private static List<Element> getElements(Element parent, String namespace,
+			String... localName) {
+		List<Element> children = Collections.singletonList(parent);
+		for (String n : localName) {
+			NodeList nl = children.get(0).getElementsByTagNameNS(namespace, n);
+			children = new ArrayList<>(nl.getLength());
+			for (int i = 0; i < nl.getLength(); i++)
+				children.add((Element) nl.item(i));
+		}
+		return children;
+	}
+
+	private void addExtra(Assay a) {
+		Element doc ;
+		try {
+			String u = a.url.toString().replaceAll("^.*//[^/]*/", "");
+			doc = get(u+".xml").getDocumentElement();
+		} catch (Exception e) {
+			log.warn("problem retrieving information from assay " + a.url, e);
+			return;
+		}
+		try {
+			for (Element inv : getElements(doc, SEEK, "associated",
+					"investigations", "investigation")) {
+				a.investigationName = inv.getAttributeNS(XLINK, "title");
+				a.investigationUrl = new URL(inv.getAttributeNS(XLINK, "href"));
+				break;
+			}
+			for (Element std : getElements(doc, SEEK, "associated", "studies",
+					"study")) {
+				a.studyName = std.getAttributeNS(XLINK, "title");
+				a.studyUrl = new URL(std.getAttributeNS(XLINK, "href"));
+				break;
+			}
+			for (Element prj : getElements(doc, SEEK, "associated", "projects",
+					"project")) {
+				String name = prj.getAttributeNS(XLINK, "title");
+				if (!name.equalsIgnoreCase("synbiochem")) {
+					a.projectName = name;
+					a.projectUrl = new URL(prj.getAttributeNS(XLINK, "href"));
+					break;
+				}
+			}
+		} catch (Exception e) {
+			log.warn("problem when filling in information from assay " + a.url, e);
+		}
+		if (a.investigationName == null)
+			a.investigationName = "UNKNOWN";
+		if (a.studyName == null)
+			a.studyName = "UNKNOWN";
+		if (a.projectName == null) {
+			a.projectName = "SynBioChem";
+			try {
+				a.projectUrl = new URL("http://synbiochem.fairdomhub.org/projects/5");
+			} catch (MalformedURLException e) {
+				// Should be unreachable
+			}
+		}
+	}
+
 	private List<Assay> cachedAssays = Collections.emptyList();
 
 	public List<Assay> getAssays() {
@@ -282,6 +360,8 @@ public class SeekConnector {
 			log.debug("found " + assayElements.getLength() + " assays");
 			for (int i = 0; i < assayElements.getLength(); i++)
 				assays.add(new Assay(assayElements.item(i)));
+			for (Assay assay : assays)
+				addExtra(assay);
 			sort(assays, assayComparator);
 		} catch (IOException | SAXException | ParserConfigurationException e) {
 			log.warn("falling back to old assay list due to " + e);

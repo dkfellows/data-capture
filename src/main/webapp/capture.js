@@ -1,3 +1,9 @@
+var projectIcon = "images/project.png";
+var investigationIcon = "images/investigation.png";
+var studyIcon = "images/study.png";
+var assayIcon = "images/assay.png";
+var userIcon = "images/user.png";
+var instrumentIcon = "images/instrument.png";
 /** Unbreak what the JSON processing does with arrays */
 function dejson(val) {
 	if (val === undefined)
@@ -274,6 +280,7 @@ function getAssayTitle(assay) {
 			+ assay["study-name"] + "' Assay: '" + assay["name"] + "'";
 }
 function updateAssays() {
+	return;
 	var context = $("#assays");
 	getJSON($("#apiAssays")[0].href, function(data) {
 		dejson(data.directory).forEach(function(item) {
@@ -286,6 +293,10 @@ function updateAssays() {
 	});
 }
 
+/** What is the currently-selected assay? */
+var theCurrentAssay = undefined;
+/** What is the currently-selected directory? */
+var theCurrentDir = undefined;
 /** Start everything going on page load */
 $(function() {
 	var theUsers = $("#users"), theAssays = $("#assays"), theDirs = $("#dirs");
@@ -296,8 +307,8 @@ $(function() {
 	var dialog, form;
 	function createTask() {
 		var theUser = $("#users option:selected").val();
-		var theAssay = $("#assays option:selected").val();
-		var theDir = $("#dirs option:selected").val();
+		var theAssay = theCurrentAssay;
+		var theDir = theCurrentDir;
 		if (theUser === undefined || theAssay === undefined || theDir === undefined) {
 			alert("please select something in all fields");
 			return false;
@@ -349,11 +360,73 @@ $(function() {
 		sortChildren(theUsers, "sort-key");
 	});
 	getJSON($("#apiAssays")[0].href, function(data) {
+		var treeData = {};
 		dejson(data.assay).forEach(function(item) {
-			addOption(theAssays, item.id, item.url, getAssayTitle(item)).
-				attr("sort-key", item.name);
+			//addOption(theAssays, item.id, item.url, item.name).
+			//	attr("sort-key", item.name);
+			var parentNode;
+			if (item["project-url"] !== undefined) {
+				parentNode = "#";
+				treeData[item["project-url"]] = {
+					id: item["project-url"],
+					parent: parentNode,
+					icon: projectIcon,
+					state: { opened: true, disabled: true },
+					text: "Project: " + item["project-name"]
+				};
+			}
+			if (item["investigation-url"] !== undefined) {
+				parentNode = "#";
+				if (item["project-url"] !== undefined)
+					parentNode = item["project-url"];
+				treeData[item["investigation-url"]] = {
+					id: item["investigation-url"],
+					parent: parentNode,
+					icon: investigationIcon,
+					state: { opened: true, disabled: true },
+					text: "Investigation: " + item["investigation-name"]
+				};
+			}
+			if (item["study-url"] !== undefined) {
+				parentNode = "#";
+				if (item["investigation-url"] !== undefined)
+					parentNode = item["investigation-url"];
+				else if (item["project-url"] !== undefined)
+					parentNode = item["project-url"];
+				treeData[item["study-url"]] = {
+					id: item["study-url"],
+					parent: parentNode,
+					icon: studyIcon,
+					text: "Study: " + item["study-name"]
+				};
+			}
+			parentNode = "#";
+			if (item["study-url"] !== undefined)
+				parentNode = item["study-url"];
+			else if (item["investigation-url"] !== undefined)
+				parentNode = item["investigation-url"];
+			else if (item["project-url"] !== undefined)
+				parentNode = item["project-url"];
+			treeData[item.url] = {
+				id: item.url,
+				parent: parentNode,
+				icon: assayIcon,
+				text: "Assay: " + item.name
+			};
 		});
-		sortChildren(theAssays, "sort-key");
+		var theData = Object.keys(treeData).map(function(x){return treeData[x];});
+		theData.sort(function(a,b){return a.text<b.text?-1:a.text>b.text?1:0;});
+		$("#experimenttree").jstree({
+			core: {"data": theData, multiple: false}
+		}).on('select_node.jstree', function(node, selection){
+			var sel = selection.selected[0];
+			if (sel.match(/assays/)) {
+				theCurrentAssay = sel;
+			} else {
+				theCurrentAssay = undefined;
+			}
+		});
+		//sortChildren(theAssays, "sort-key");
 	});
 	getJSON($("#apiDirs")[0].href, function(data) {
 		theDirs.children().each(function(){
@@ -362,13 +435,45 @@ $(function() {
 				$(this).attr("sort-key", "");
 			}
 		});
+		var treeData = {};
 		dejson(data.directory).forEach(function(item) {
+			var bits = item.name.split("/");
+			var instrument = bits.slice(0,3).join("/");
+			var person = bits.slice(0,4).join("/");
+			treeData[instrument] = {
+				id: instrument,
+				parent: "#",
+				icon: instrumentIcon,
+				text: "Instrument: " + bits[2]
+			};
+			treeData[person] = {
+				id: person,
+				parent: instrument,
+				icon: personIcon,
+				text: "Experimenter: " + bits[3]
+			}
+			treeData[item.name] = {
+				id: item.name,
+				parent: person,
+				text: "Data: " + bits.slice(4).join("/")
+			}
 			var info = getInstrumentAndDir(item);
 			addOption(theDirs, item["@id"], item.name, "Instrument: "
 					+ info.instrument + " Dir: " + info.dir).
 				attr("sort-key", item.name);
 		});
-		sortChildren(theDirs, "sort-key");
+		treeData = Object.keys(treeData).map(function(x){return treeData[x];});
+		treeData.sort(function(a,b){return a.text<b.text?-1:a.text>b.text?1:0;});
+		$("#dirtree").jstree({
+			core: {"data": treeData, multiple: false}
+		}).on('select_node.jstree', function(node, selection){
+			var sel = selection.selected[0];
+			if (sel.split("/").length > 4) {
+				theCurrentDir = sel;
+			} else {
+				theCurrentDir = undefined;
+			}
+		});
 	});
 	getJSON($("#apiTasks")[0].href, function(data) {
 		var context = $("#tasks");
@@ -377,6 +482,6 @@ $(function() {
 		});
 	});
 	setInterval(updateProgress, 10000);
-	setInterval(updateDirs, 30000)
-	setInterval(updateAssays, 30000)
+	//setInterval(updateDirs, 30000)
+	//setInterval(updateAssays, 30000)
 });

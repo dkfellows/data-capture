@@ -5,6 +5,8 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
 <link rel="stylesheet"
 	href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+<script src="//cdnjs.cloudflare.com/ajax/libs/jstree/3.0.9/jstree.min.js"></script>
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/jstree/3.0.9/themes/default/style.min.css" />
 <link rel="shortcut icon" href="http://synbiochem.co.uk/wp-content/uploads/builder-favicon/tnHE2AeAx.ico" />
 
 <link rel="stylesheet" href="http://synbiochem.co.uk/wp-content/themes/Builder-Summit/lib/builder-core/css/reset.css" type="text/css" media="screen" />

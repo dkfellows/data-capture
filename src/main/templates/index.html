@@ -38,19 +38,19 @@
 	<form id="newTask">
 		<fieldset>
 			<label for="users">Responsible Scientist:</label>
-			<select id="users" style="width: 90%">
+			<select id="users" style="width: 430px">
 				<option selected>Choose...</option>
 			</select>
 			<!-- ============================================================ -->
-			<label for="assays">SEEK Assay:</label>
-			<select id="assays" style="width: 90%">
-				<option selected>Choose...</option>
-			</select>
+			<label for="experimenttree">SEEK Assay:</label>
+			<div style="height: 150px; width: 430px; overflow: auto; padding: 15px 15px">
+				<div id="experimenttree"></div>
+			</div>
 			<!-- ============================================================ -->
 			<label for="dirs">Data Directory:</label>
-			<select id="dirs" style="width: 90%">
-				<option selected>Choose...</option>
-			</select>
+			<div style="height: 150px; width: 430px; overflow: auto; padding: 15px 15px">
+				<div id="dirtree"></div>
+			</div>
 			<!-- ============================================================ -->
 			<input type="submit" tabindex="-1"
 				style="position: absolute; top: -1000px">

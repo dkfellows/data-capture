@@ -449,7 +449,7 @@ $(function() {
 			treeData[person] = {
 				id: person,
 				parent: instrument,
-				icon: personIcon,
+				icon: userIcon,
 				text: "Experimenter: " + bits[3]
 			}
 			treeData[item.name] = {
@@ -484,4 +484,14 @@ $(function() {
 	setInterval(updateProgress, 10000);
 	//setInterval(updateDirs, 30000)
 	//setInterval(updateAssays, 30000)
+	
+	/*Scrolling magic, courtesy of StackOverflow */
+	$('.treescroll').bind('mousewheel DOMMouseScroll', function(e) {
+        var delta = e.wheelDelta || (e.originalEvent && e.originalEvent.wheelDelta) || -e.detail,
+        	bottomOverflow = this.scrollTop + $(this).outerHeight() - this.scrollHeight >= 0,
+        	topOverflow = this.scrollTop <= 0;
+        if ((delta < 0 && bottomOverflow) || (delta > 0 && topOverflow)) {
+        	e.preventDefault();
+        }
+	});
 });

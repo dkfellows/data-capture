@@ -64,9 +64,15 @@ public class ArchiverTask implements Callable<URL> {
 		ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		ISO8601.setTimeZone(UTC);
 		this.metadata = metadata;
-		this.archiveRoot = archiveRoot;
+		
+		String machine = directoryToArchive.getParentFile().getParentFile().getName();
+		String project = "capture";
+		if (metadata.getExperiment().projectName != null)
+			project = metadata.getExperiment().projectName.replaceAll("[^a-zA-Z0-9]+", "-");
+		// Real root is $archiveRoot/MS-$project/$machine
+		this.archiveRoot = new File(new File(archiveRoot, "MS-" + project), machine);
 		this.metastoreRoot = metastoreRoot;
-		this.cifsRoot = cifsRoot;
+		this.cifsRoot = cifsRoot.resolve("MS-" + project + "/" + machine);
 		this.directoryToArchive = directoryToArchive;
 		this.seek = seek;
 		this.entries = new ArrayList<>();

@@ -27,7 +27,7 @@
 <strong>WARNING:</strong> We may need to reorganise this interface soon in order to correct experimental modelling problems.
 </p>
 
-<div id="new" title="New archive task">
+<div id="new" title="New archive task" class="flexcont flexible" style="max-height: 85%">
 	<p>
 		Please select who did the experiment, what SEEK Assay this is part of,
 		and where the data to record is located. Note that only existing
@@ -35,20 +35,19 @@
 			polls</abbr>), and the assays must be shared for update with the whole
 		SynBioChem team.
 	</p>
-	<form id="newTask">
-		<fieldset>
+	<div class="newContainer flexcont flexible" style="width: 100%">
+	<form id="newTask" class="flexcont flexible">
+		<fieldset class="flexcont flexible">
 			<label for="users">Responsible Scientist:</label>
-			<select id="users" style="width: 430px">
+			<select id="users" style="width: 100%">
 				<option selected>Choose...</option>
 			</select>
 			<!-- ============================================================ -->
-			<label for="experimenttree">SEEK Assay:</label>
-			<div class="treescroll">
+			<div class="treescroll flexible" style="max-height: 35em">
+				<label for="experimenttree">SEEK Assay:</label>
 				<div id="experimenttree"></div>
-			</div>
 			<!-- ============================================================ -->
-			<label for="dirs">Data Directory:</label>
-			<div class="treescroll">
+				<label for="dirs">Data Directory:</label>
 				<div id="dirtree"></div>
 			</div>
 			<!-- ============================================================ -->
@@ -56,6 +55,7 @@
 				style="position: absolute; top: -1000px">
 		</fieldset>
 	</form>
+	</div>
 </div>
 
 <div id="current">

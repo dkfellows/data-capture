@@ -439,28 +439,36 @@ $(function() {
 		dejson(data.directory).forEach(function(item) {
 			var bits = item.name.split("/");
 			var instrument = bits.slice(0,3).join("/");
-			var person = bits.slice(0,4).join("/");
 			treeData[instrument] = {
 				id: instrument,
 				parent: "#",
 				icon: instrumentIcon,
 				text: "Instrument: " + bits[2]
 			};
-			treeData[person] = {
-				id: person,
-				parent: instrument,
-				icon: userIcon,
-				text: "Experimenter: " + bits[3]
+			if (bits.length == 5) {
+				var person = bits.slice(0,4).join("/");
+				treeData[person] = {
+					id: person,
+					parent: instrument,
+					icon: userIcon,
+					text: "Experimenter: " + bits[3]
+				};
+				treeData[item.name] = {
+					id: item.name,
+					parent: person,
+					text: "Data: " + bits.slice(4).join("/")
+				};
+			} else {
+				treeData[item.name] = {
+					id: item.name,
+					parent: instrument,
+					text: "Data: " + bits.slice(3).join("/")
+				};
 			}
-			treeData[item.name] = {
-				id: item.name,
-				parent: person,
-				text: "Data: " + bits.slice(4).join("/")
-			}
-			var info = getInstrumentAndDir(item);
-			addOption(theDirs, item["@id"], item.name, "Instrument: "
-					+ info.instrument + " Dir: " + info.dir).
-				attr("sort-key", item.name);
+			//var info = getInstrumentAndDir(item);
+			//addOption(theDirs, item["@id"], item.name, "Instrument: "
+			//		+ info.instrument + " Dir: " + info.dir).
+			//	attr("sort-key", item.name);
 		});
 		treeData = Object.keys(treeData).map(function(x){return treeData[x];});
 		treeData.sort(function(a,b){return a.text<b.text?-1:a.text>b.text?1:0;});

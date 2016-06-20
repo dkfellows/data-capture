@@ -19,6 +19,8 @@ import java.util.TimeZone;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
+import manchester.synbiochem.datacapture.SeekConnector.Assay;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -58,21 +60,33 @@ public class ArchiverTask implements Callable<URL> {
 	Long finish;
 	private DateFormat ISO8601;
 
+	private static String getMachineName(File sourceDir) {
+		return sourceDir.getParentFile().getParentFile().getName();
+	}
+
+	private static String getProjectName(String machine, MetadataRecorder metadata) {
+		// TODO Determine prefix from machine name?
+		String prefix = "MS-";
+		String project = "capture";
+		Assay experiment = metadata.getExperiment();
+		if (experiment.projectName != null)
+			project = experiment.projectName.replaceAll("[^a-zA-Z0-9]+", "-");
+		return prefix + (project.toLowerCase());
+	}
+
 	public ArchiverTask(MetadataRecorder metadata, File archiveRoot,
 			File metastoreRoot, URI cifsRoot, File directoryToArchive,
 			SeekConnector seek) {
 		ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		ISO8601.setTimeZone(UTC);
 		this.metadata = metadata;
-		
-		String machine = directoryToArchive.getParentFile().getParentFile().getName();
-		String project = "capture";
-		if (metadata.getExperiment().projectName != null)
-			project = metadata.getExperiment().projectName.replaceAll("[^a-zA-Z0-9]+", "-");
+
+		String machine = getMachineName(directoryToArchive);
+		String project = getProjectName(machine, metadata);
 		// Real root is $archiveRoot/MS-$project/$machine
-		this.archiveRoot = new File(new File(archiveRoot, "MS-" + project), machine);
+		this.archiveRoot = new File(new File(archiveRoot, project), machine);
+		this.cifsRoot = cifsRoot.resolve(project + "/" + machine);
 		this.metastoreRoot = metastoreRoot;
-		this.cifsRoot = cifsRoot.resolve("MS-" + project + "/" + machine);
 		this.directoryToArchive = directoryToArchive;
 		this.seek = seek;
 		this.entries = new ArrayList<>();

@@ -330,21 +330,37 @@ $(function() {
 		});
 		return true;
 	}
+	function updateEnabled() {
+		var theUser = $("#users option:selected").val();
+		var theAssay = theCurrentAssay;
+		var theDir = theCurrentDir;
+		console.log("u:", theUser, "a:", theAssay, "d:", theDir);
+		var disabled = (theUser === undefined || theAssay === undefined || theDir === undefined);
+		$("#newOK").button("option", "disabled", disabled);
+	}
 	dialog = $("#new").dialog({
 		autoOpen: false,
 		height: 'auto',
 		width: '50%',
 		modal: true,
-		buttons: {
-			"Create archiving task": createTask,
-			"Cancel": function () {
-				dialog.dialog("close");
+		buttons: [
+			{
+				id: "newOK",
+				text: "Create archiving task",
+				click: createTask
+			}, {
+				text: "Cancel",
+				click: function () {
+					dialog.dialog("close");
+				}
 			}
-		},
+		],
 		close: function() {
 			form[0].reset();
 		}
 	});
+	updateEnabled();
+	theUsers.on("selectmenuchanged", updateEnabled);
 	form = dialog.find("form").on("submit", function(event){
 		event.preventDefault();
 		createTask();
@@ -362,8 +378,6 @@ $(function() {
 	getJSON($("#apiAssays")[0].href, function(data) {
 		var treeData = {};
 		dejson(data.assay).forEach(function(item) {
-			//addOption(theAssays, item.id, item.url, item.name).
-			//	attr("sort-key", item.name);
 			var parentNode;
 			if (item["project-url"] !== undefined) {
 				parentNode = "#";
@@ -371,7 +385,7 @@ $(function() {
 					id: item["project-url"],
 					parent: parentNode,
 					icon: projectIcon,
-					state: { opened: true, disabled: true },
+					state: { opened: true },
 					text: "Project: " + item["project-name"]
 				};
 			}
@@ -383,7 +397,7 @@ $(function() {
 					id: item["investigation-url"],
 					parent: parentNode,
 					icon: investigationIcon,
-					state: { opened: true, disabled: true },
+					state: { opened: true },
 					text: "Investigation: " + item["investigation-name"]
 				};
 			}
@@ -425,9 +439,10 @@ $(function() {
 			} else {
 				theCurrentAssay = undefined;
 			}
+			updateEnabled();
 		});
-		//sortChildren(theAssays, "sort-key");
 	});
+	var dataLeaves = {};
 	getJSON($("#apiDirs")[0].href, function(data) {
 		theDirs.children().each(function(){
 			var a = $(this).attr("sort-key");
@@ -436,6 +451,7 @@ $(function() {
 			}
 		});
 		var treeData = {};
+		var leaves = {};
 		dejson(data.directory).forEach(function(item) {
 			var bits = item.name.split("/");
 			var instrument = bits.slice(0,3).join("/");
@@ -465,22 +481,21 @@ $(function() {
 					text: "Data: " + bits.slice(3).join("/")
 				};
 			}
-			//var info = getInstrumentAndDir(item);
-			//addOption(theDirs, item["@id"], item.name, "Instrument: "
-			//		+ info.instrument + " Dir: " + info.dir).
-			//	attr("sort-key", item.name);
+			leaves[item.name] = true;
 		});
+		dataLeaves = leaves;
 		treeData = Object.keys(treeData).map(function(x){return treeData[x];});
 		treeData.sort(function(a,b){return a.text<b.text?-1:a.text>b.text?1:0;});
 		$("#dirtree").jstree({
 			core: {"data": treeData, multiple: false}
 		}).on('select_node.jstree', function(node, selection){
 			var sel = selection.selected[0];
-			if (sel.split("/").length > 4) {
+			if (dataLeaves[sel] !== undefined) {
 				theCurrentDir = sel;
 			} else {
 				theCurrentDir = undefined;
 			}
+			updateEnabled();
 		});
 	});
 	getJSON($("#apiTasks")[0].href, function(data) {

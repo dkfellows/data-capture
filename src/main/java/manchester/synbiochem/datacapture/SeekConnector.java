@@ -33,9 +33,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.ws.rs.WebApplicationException;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlSchemaType;
@@ -139,6 +136,39 @@ public class SeekConnector {
 		}
 
 		Assay(Node node) throws MalformedURLException, DOMException {
+			Element assay = (Element) node;
+			url = new URL(assay.getAttributeNS(XLINK, "href"));
+			id = Integer.parseInt(assay.getAttribute("id"));
+			name = assay.getAttributeNS(XLINK, "title");
+		}
+	}
+
+	@SuppressWarnings("serial")
+	@XmlRootElement(name = "study")
+	@XmlType(propOrder = {})
+	public static class Study implements Serializable {
+		@XmlElement
+		public String name;
+		@XmlElement
+		public Integer id;
+		@XmlElement(required = true)
+		@XmlSchemaType(name = "anyUri")
+		public URL url;
+		@XmlElement(name = "project-name")
+		String projectName;
+		@XmlElement(name = "project-url")
+		@XmlSchemaType(name = "anyUri")
+		public URL projectUrl;
+		@XmlElement(name = "investigation-name")
+		String investigationName;
+		@XmlElement(name = "investigation-url")
+		@XmlSchemaType(name = "anyUri")
+		public URL investigationUrl;
+
+		public Study() {
+		}
+
+		Study(Node node) throws MalformedURLException, DOMException {
 			Element assay = (Element) node;
 			url = new URL(assay.getAttributeNS(XLINK, "href"));
 			id = Integer.parseInt(assay.getAttribute("id"));
@@ -395,6 +425,46 @@ public class SeekConnector {
 		throw new IOException("no authenticity token found");
 	}
 
+	public URL createAssay(User user, Study study, 
+			String description, String title) throws IOException {
+		MultipartFormData form = makeAssayCreateForm(user, study, title, description);
+
+		try {
+			HttpURLConnection c = connect("/assays");
+			try {
+				c.setInstanceFollowRedirects(false);
+				c.setDoOutput(true);
+				c.setRequestMethod("POST");
+				c.setRequestProperty("Content-Type", form.contentType());
+				c.setRequestProperty("Content-Length", form.length());
+				c.connect();
+				try (OutputStream os = c.getOutputStream()) {
+					os.write(form.content());
+				}
+				switch (fromStatusCode(c.getResponseCode())) {
+				case CREATED:
+				case FOUND:
+					return new URL(seek, c.getHeaderField("Location"));
+				case OK:
+					return null;
+				default:
+					InputStream errors = c.getErrorStream();
+					if (errors != null)
+						for (String line : readLines(errors))
+							log.error("problem in file upload: " + line);
+					throw new WebApplicationException(
+							"upload failed with code " + c.getResponseCode()
+									+ ": " + c.getResponseMessage(),
+							INTERNAL_SERVER_ERROR);
+				}
+			} finally {
+				c.disconnect();
+			}
+		} catch (IOException e) {
+			throw new WebApplicationException("HTTP error", e);
+		}
+	}
+
 	// TODO linkFileAsset(User user, Assay assay, String name,
 	// String title, String type, URL content)
 	public URL uploadFileAsset(User user, Assay assay, String name,
@@ -439,6 +509,49 @@ public class SeekConnector {
 		}
 	}
 
+	private void addPermissionsToForm(MultipartFormData form) {
+		form.addField("sharing[permissions][contributor_types]", "[]");
+		form.addField("sharing[permissions][values]", "{}");
+		form.addField("sharing[access_type_0]", "0");
+		form.addField("sharing[sharing_scope]", "2");
+		form.addField("sharing[your_proj_access_type]", "4");
+		form.addField("sharing[access_type_2]", "1");
+		form.addField("sharing[access_type_4]", "1");
+		form.addField("proj_project[select]");
+		form.addField("proj_access_type_select", "0");
+		form.addField("individual_people_access_type_select", "0");
+	}
+
+	private static final String JERM_EXPERIMENT = "http://www.mygrid.org.uk/ontology/JERMOntology#Experimental_assay_type";
+	private static final String JERM_TECH = "http://www.mygrid.org.uk/ontology/JERMOntology#Technology_type";
+
+	private MultipartFormData makeAssayCreateForm(User user, Study study,
+			String title, String description) throws IOException {
+		MultipartFormData form = new MultipartFormData("1234567890");
+		form.addField("utf8", "\u2713"); // ✓
+		form.addField("authenticity_token", getAuthToken());
+		form.addField("assay[create_from_asset]");
+		form.addField("assay[title]", title);
+		form.addField("assay[description]", description);
+		form.addField("assay[study_id]", study.id);
+		form.addField("assay[assay_class_id]", 1); // ?
+		form.addField("assay[assay_type_uri]", JERM_EXPERIMENT);
+		form.addField("assay[technology_type_uri]", JERM_TECH);
+		form.addField("possible_organisms", 0);
+		form.addField("culture_growth", "Not specified");// ?
+		addPermissionsToForm(form);
+		form.addField("tag_list");
+		form.addField("creator-typeahead");
+		form.addField("creators", "[[\"" + user.name + "\"," + user.id + "]]");
+		form.addField("adv_project_id");
+		form.addField("adv_institution_id", institution);
+		form.addField("assay[other_creators]");
+		form.addField("possible_sops", 0);
+		form.addField("possible_publications", 0);
+		form.build();
+		return form;
+	}
+
 	private MultipartFormData makeFileUploadForm(User user, Assay assay, String name,
 			String description, String title, String type, String content)
 			throws IOException {
@@ -457,16 +570,7 @@ public class SeekConnector {
 		form.addField("data_file[project_ids][]");
 		form.addField("data_file[project_ids][]", projectID);
 		form.addField("data_file[license]", license);
-		form.addField("sharing[permissions][contributor_types]", "[]");
-		form.addField("sharing[permissions][values]", "{}");
-		form.addField("sharing[access_type_0]", 0);
-		form.addField("sharing[sharing_scope]", 2);// TODO hardcoded?
-		form.addField("sharing[your_proj_access_type]", 4);// TODO hardcoded?
-		form.addField("sharing[access_type_2]", 1);// TODO hardcoded?
-		form.addField("sharing[access_type_4]", 2);// TODO hardcoded?
-		form.addField("proj_project[select]");
-		form.addField("proj_access_type_select", 0);// TODO hardcoded?
-		form.addField("individual_people_access_type_select", 0);// TODO hardcoded?
+		addPermissionsToForm(form);
 		form.addField("tag_list");
 		form.addField("attribution-typeahead");
 		form.addField("attributions", "[]");

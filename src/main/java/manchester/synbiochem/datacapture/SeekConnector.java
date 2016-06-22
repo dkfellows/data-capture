@@ -33,6 +33,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response.Status;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlSchemaType;
@@ -288,6 +289,12 @@ public class SeekConnector {
 			return o1.id - o2.id;
 		}
 	};
+	private static final Comparator<Study> studyComparator = new Comparator<Study>() {
+		@Override
+		public int compare(Study o1, Study o2) {
+			return o1.id - o2.id;
+		}
+	};
 
 	protected List<User> getUserList() throws SAXException, IOException,
 			ParserConfigurationException {
@@ -317,6 +324,23 @@ public class SeekConnector {
 				log.warn("bad URI returned from SEEK; skipping to next", e);
 			}
 		throw new WebApplicationException("no such assay", BAD_REQUEST);
+	}
+
+	public Study getStudy(URL studyURL) {
+		URI studyURI;
+		try {
+			studyURI = studyURL.toURI();
+		} catch (URISyntaxException e) {
+			throw new WebApplicationException(e, BAD_REQUEST);
+		}
+		for (Study assay : getStudies())
+			try {
+				if (assay.url.toURI().equals(studyURI))
+					return assay;
+			} catch (URISyntaxException e) {
+				log.warn("bad URI returned from SEEK; skipping to next", e);
+			}
+		throw new WebApplicationException("no such study", BAD_REQUEST);
 	}
 
 	private static List<Element> getElements(Element parent, String namespace,
@@ -379,6 +403,46 @@ public class SeekConnector {
 		}
 	}
 
+	private void addExtra(Study s) {
+		Element doc ;
+		try {
+			String u = s.url.toString().replaceAll("^.*//[^/]*/", "");
+			doc = get(u+".xml").getDocumentElement();
+		} catch (Exception e) {
+			log.warn("problem retrieving information from assay " + s.url, e);
+			return;
+		}
+		try {
+			for (Element inv : getElements(doc, SEEK, "associated",
+					"investigations", "investigation")) {
+				s.investigationName = inv.getAttributeNS(XLINK, "title");
+				s.investigationUrl = new URL(inv.getAttributeNS(XLINK, "href"));
+				break;
+			}
+			for (Element prj : getElements(doc, SEEK, "associated", "projects",
+					"project")) {
+				String name = prj.getAttributeNS(XLINK, "title");
+				if (!name.equalsIgnoreCase("synbiochem")) {
+					s.projectName = name;
+					s.projectUrl = new URL(prj.getAttributeNS(XLINK, "href"));
+					break;
+				}
+			}
+		} catch (Exception e) {
+			log.warn("problem when filling in information from assay " + s.url, e);
+		}
+		if (s.investigationName == null)
+			s.investigationName = "UNKNOWN";
+		if (s.projectName == null) {
+			s.projectName = "SynBioChem";
+			try {
+				s.projectUrl = new URL("http://synbiochem.fairdomhub.org/projects/5");
+			} catch (MalformedURLException e) {
+				// Should be unreachable
+			}
+		}
+	}
+
 	private List<Assay> cachedAssays = Collections.emptyList();
 
 	public List<Assay> getAssays() {
@@ -403,6 +467,30 @@ public class SeekConnector {
 		return assays;
 	}
 
+	private List<Study> cachedStudies = Collections.emptyList();
+
+	public List<Study> getStudies() {
+		List<Study> studies = new ArrayList<>();
+		try {
+			Document d = get("/studies.xml?page=all");
+			Element items = (Element) d.getDocumentElement()
+					.getElementsByTagNameNS(SEEK, "items").item(0);
+			NodeList studyElements = items
+					.getElementsByTagNameNS(SEEK, "study");
+			log.debug("found " + studyElements.getLength() + " studies");
+			for (int i = 0; i < studyElements.getLength(); i++)
+				studies.add(new Study(studyElements.item(i)));
+			for (Study study : studies)
+				addExtra(study);
+			sort(studies, studyComparator);
+		} catch (IOException | SAXException | ParserConfigurationException e) {
+			log.warn("falling back to old study list due to " + e);
+			return cachedStudies;
+		}
+		cachedStudies = studies;
+		return studies;
+	}
+
 	@PostConstruct
 	private void firstFetch() {
 		// write this information into the log, deliberately
@@ -425,37 +513,49 @@ public class SeekConnector {
 		throw new IOException("no authenticity token found");
 	}
 
-	public URL createAssay(User user, Study study, 
-			String description, String title) throws IOException {
-		MultipartFormData form = makeAssayCreateForm(user, study, title, description);
+	private static Status postForm(HttpURLConnection c, MultipartFormData form)
+			throws IOException {
+		c.setInstanceFollowRedirects(false);
+		c.setDoOutput(true);
+		c.setRequestMethod("POST");
+		c.setRequestProperty("Content-Type", form.contentType());
+		c.setRequestProperty("Content-Length", form.length());
+		c.connect();
+		try (OutputStream os = c.getOutputStream()) {
+			os.write(form.content());
+		}
+		return fromStatusCode(c.getResponseCode());
+	}
 
+	private void readErrorFromConnection(HttpURLConnection c, String message,
+			String logPrefix) throws IOException {
+		InputStream errors = c.getErrorStream();
+		if (errors != null) {
+			for (String line : readLines(errors))
+				log.error(logPrefix + ": " + line);
+			errors.close();
+		}
+		throw new WebApplicationException(String.format(message,
+				c.getResponseCode(), c.getResponseMessage()),
+				INTERNAL_SERVER_ERROR);
+	}
+
+	public URL createExperimentalAssay(User user, Study study, 
+			String description, String title) {
 		try {
+			MultipartFormData form = makeAssayCreateForm(user, study, title,
+					description, JERM_EXPERIMENT);
 			HttpURLConnection c = connect("/assays");
 			try {
-				c.setInstanceFollowRedirects(false);
-				c.setDoOutput(true);
-				c.setRequestMethod("POST");
-				c.setRequestProperty("Content-Type", form.contentType());
-				c.setRequestProperty("Content-Length", form.length());
-				c.connect();
-				try (OutputStream os = c.getOutputStream()) {
-					os.write(form.content());
-				}
-				switch (fromStatusCode(c.getResponseCode())) {
+				switch (postForm(c, form)) {
 				case CREATED:
 				case FOUND:
 					return new URL(seek, c.getHeaderField("Location"));
+				default:
+					readErrorFromConnection(c, "problem in form post",
+							"write to SEEK failed with code %d: %s");
 				case OK:
 					return null;
-				default:
-					InputStream errors = c.getErrorStream();
-					if (errors != null)
-						for (String line : readLines(errors))
-							log.error("problem in file upload: " + line);
-					throw new WebApplicationException(
-							"upload failed with code " + c.getResponseCode()
-									+ ": " + c.getResponseMessage(),
-							INTERNAL_SERVER_ERROR);
 				}
 			} finally {
 				c.disconnect();
@@ -468,38 +568,21 @@ public class SeekConnector {
 	// TODO linkFileAsset(User user, Assay assay, String name,
 	// String title, String type, URL content)
 	public URL uploadFileAsset(User user, Assay assay, String name,
-			String description, String title, String type, String content)
-			throws IOException {
-		MultipartFormData form = makeFileUploadForm(user, assay, name, description, title,
-				type, content);
-
+			String description, String title, String type, String content) {
 		try {
+			MultipartFormData form = makeFileUploadForm(user, assay, name,
+					description, title, type, content);
 			HttpURLConnection c = connect("/data_files");
 			try {
-				c.setInstanceFollowRedirects(false);
-				c.setDoOutput(true);
-				c.setRequestMethod("POST");
-				c.setRequestProperty("Content-Type", form.contentType());
-				c.setRequestProperty("Content-Length", form.length());
-				c.connect();
-				try (OutputStream os = c.getOutputStream()) {
-					os.write(form.content());
-				}
-				switch (fromStatusCode(c.getResponseCode())) {
+				switch (postForm(c, form)) {
 				case CREATED:
 				case FOUND:
 					return new URL(seek, c.getHeaderField("Location"));
+				default:
+					readErrorFromConnection(c, "problem in file upload",
+							"upload failed with code %d: %s");
 				case OK:
 					return null;
-				default:
-					InputStream errors = c.getErrorStream();
-					if (errors != null)
-						for (String line : readLines(errors))
-							log.error("problem in file upload: " + line);
-					throw new WebApplicationException(
-							"upload failed with code " + c.getResponseCode()
-									+ ": " + c.getResponseMessage(),
-							INTERNAL_SERVER_ERROR);
 				}
 			} finally {
 				c.disconnect();
@@ -526,7 +609,7 @@ public class SeekConnector {
 	private static final String JERM_TECH = "http://www.mygrid.org.uk/ontology/JERMOntology#Technology_type";
 
 	private MultipartFormData makeAssayCreateForm(User user, Study study,
-			String title, String description) throws IOException {
+			String title, String description, String assayType) throws IOException {
 		MultipartFormData form = new MultipartFormData("1234567890");
 		form.addField("utf8", "\u2713"); // ✓
 		form.addField("authenticity_token", getAuthToken());
@@ -535,7 +618,7 @@ public class SeekConnector {
 		form.addField("assay[description]", description);
 		form.addField("assay[study_id]", study.id);
 		form.addField("assay[assay_class_id]", 1); // ?
-		form.addField("assay[assay_type_uri]", JERM_EXPERIMENT);
+		form.addField("assay[assay_type_uri]", assayType);
 		form.addField("assay[technology_type_uri]", JERM_TECH);
 		form.addField("possible_organisms", 0);
 		form.addField("culture_growth", "Not specified");// ?

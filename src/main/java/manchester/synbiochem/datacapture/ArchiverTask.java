@@ -308,17 +308,12 @@ public class ArchiverTask implements Callable<URL> {
 		metadata.get();
 		String instrument = directoryToArchive.getParentFile().getName();
 		String time = ISO8601.format(new Date(start));
-		try {
-			return seek.uploadFileAsset(metadata.getUser(),
-					metadata.getExperiment(), "metadata.tsv",
-					"CSV document describing files copied from instrument "
-							+ instrument + " to storage at timestamp " + time,
-					"Experimental Results Metadata",
-					"text/tab-separated-values", metadata.getCSV());
-		} catch (IOException e) {
-			log.warn("task[" + myID + "] failed to upload metadata to SEEK", e);
-			return null;
-		}
+		return seek.uploadFileAsset(metadata.getUser(),
+				metadata.getExperiment(), "metadata.tsv",
+				"CSV document describing files copied from instrument "
+						+ instrument + " to storage at timestamp " + time,
+				"Experimental Results Metadata", "text/tab-separated-values",
+				metadata.getCSV());
 	}
 
 	/**

@@ -150,6 +150,8 @@ public class SeekConnector {
 	private Integer projectID;
 	@Value("${seek.institution:0}")
 	private Integer institution;
+	@Value("${seek.license:CC-BY-4.0}")
+	private String license;
 	private URL seek;
 	private String credentials;
 	private Proxy proxy;
@@ -448,21 +450,23 @@ public class SeekConnector {
 		form.addContent("content_blobs[][data]", name, type, content);
 		form.addField("content_blobs[][data_url]");
 		form.addField("content_blobs[][original_filename]");
-		form.addField("url_checked", "false");
+		form.addField("url_checked", false);
 		form.addField("data_file[title]", title);
 		form.addField("data_file[description]", description);
-		form.addField("possible_data_file_project_ids", 1);
+		form.addField("possible_data_file_project_ids", projectID);
+		form.addField("data_file[project_ids][]");
 		form.addField("data_file[project_ids][]", projectID);
+		form.addField("data_file[license]", license);
 		form.addField("sharing[permissions][contributor_types]", "[]");
 		form.addField("sharing[permissions][values]", "{}");
-		form.addField("sharing[access_type_0]", "0");
-		form.addField("sharing[sharing_scope]", "2");// TODO hardcoded?
-		form.addField("sharing[your_proj_access_type]", "2");// TODO hardcoded?
-		form.addField("sharing[access_type_2]", "1");// TODO hardcoded?
-		form.addField("sharing[access_type_4]", "2");// TODO hardcoded?
+		form.addField("sharing[access_type_0]", 0);
+		form.addField("sharing[sharing_scope]", 2);// TODO hardcoded?
+		form.addField("sharing[your_proj_access_type]", 4);// TODO hardcoded?
+		form.addField("sharing[access_type_2]", 1);// TODO hardcoded?
+		form.addField("sharing[access_type_4]", 2);// TODO hardcoded?
 		form.addField("proj_project[select]");
-		form.addField("proj_access_type_select", "0");
-		form.addField("individual_people_access_type_select", "0");
+		form.addField("proj_access_type_select", 0);// TODO hardcoded?
+		form.addField("individual_people_access_type_select", 0);// TODO hardcoded?
 		form.addField("tag_list");
 		form.addField("attribution-typeahead");
 		form.addField("attributions", "[]");
@@ -471,14 +475,12 @@ public class SeekConnector {
 		form.addField("adv_project_id");
 		form.addField("adv_institution_id", institution);
 		form.addField("data_file[other_creators]");
-		form.addField("possible_publications", "0");
-		form.addField("possible_assays", "1");// TODO hardcoded?
+		form.addField("possible_publications", 0);// TODO hardcoded?
+		form.addField("possible_assays", assay.id);
 		form.addField("assay_ids[]", assay.id);
-		form.addField("assay_relationship_type", "0"); // ?
-		form.addField("possible_data_file_event_ids", "0");// ?
+		form.addField("assay_relationship_type", 0);// TODO hardcoded?
+		form.addField("possible_data_file_event_ids", 0);// TODO hardcoded?
 		form.addField("data_file[event_ids][]");
-		form.addField("possible_data_file_sample_ids", "0");
-		form.addField("data_file[sample_ids][]");
 		form.build();
 		return form;
 	}

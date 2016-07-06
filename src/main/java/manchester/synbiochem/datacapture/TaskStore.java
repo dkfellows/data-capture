@@ -53,6 +53,8 @@ public class TaskStore {
 	AsyncTaskExecutor executor;
 	@Autowired
 	SeekConnector seek;
+	@Autowired
+	InformationSource infoSource;
 	@Value("${cifs.root}")
 	private URI cifsRoot;
 	private Tika tika = new Tika();
@@ -112,16 +114,16 @@ public class TaskStore {
 		assert assay != null && assay.url != null;
 		md.setExperiment(assay);
 		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot,
-				existingDirectory(dirs), seek);
+				existingDirectory(dirs), seek, infoSource);
+		Future<URL> taskResult = executor.submit(at);
 		synchronized (this) {
-			Future<URL> foo = executor.submit(at);
 			String key;
 			do {
 				key = "task" + (++count);
 			} while (tasks.containsKey(key) || doneTasks.containsKey(key));
-			ActiveTask p = new ActiveTask(key, md, dirs, at, foo);
+			ActiveTask p = new ActiveTask(key, md, dirs, at, taskResult);
 			tasks.put(key, p);
-			at.setJavaTask(foo);
+			at.setJavaTask(taskResult);
 			return key;
 		}
 	}

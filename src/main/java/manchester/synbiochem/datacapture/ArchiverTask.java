@@ -60,29 +60,35 @@ public class ArchiverTask implements Callable<URL> {
 	Long finish;
 	private DateFormat ISO8601;
 
-	private static String getMachineName(File sourceDir) {
-		return sourceDir.getParentFile().getParentFile().getName();
+	private static String getMachineName(File sourceDir, InformationSource info) {
+		File sd = sourceDir;
+		do {
+			sd = sd.getParentFile();
+		} while (sd != null && info.hasMachineName(sd.getName()));
+		return sd == null ? sourceDir.getParentFile().getName() : sd.getName();
 	}
 
-	private static String getProjectName(String machine, MetadataRecorder metadata) {
-		// TODO Determine prefix from machine name?
-		String prefix = "MS-";
+	private static String getProjectName(String machine,
+			MetadataRecorder metadata, InformationSource info) {
+		String prefix = info.getInstrumentType(machine);
 		String project = "capture";
 		Assay experiment = metadata.getExperiment();
 		if (experiment.projectName != null)
 			project = experiment.projectName.replaceAll("[^a-zA-Z0-9]+", "-");
-		return prefix + (project.toLowerCase());
+		if (project.equalsIgnoreCase("synbiochem"))
+			project = "other";
+		return prefix + "-" + (project.toLowerCase());
 	}
 
 	public ArchiverTask(MetadataRecorder metadata, File archiveRoot,
 			File metastoreRoot, URI cifsRoot, File directoryToArchive,
-			SeekConnector seek) {
+			SeekConnector seek, InformationSource infoSource) {
 		ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		ISO8601.setTimeZone(UTC);
 		this.metadata = metadata;
 
-		String machine = getMachineName(directoryToArchive);
-		String project = getProjectName(machine, metadata);
+		String machine = getMachineName(directoryToArchive, infoSource);
+		String project = getProjectName(machine, metadata, infoSource);
 		// Real root is $archiveRoot/MS-$project/$machine
 		this.archiveRoot = new File(new File(archiveRoot, project), machine);
 		this.cifsRoot = cifsRoot.resolve(project + "/" + machine);
@@ -289,7 +295,7 @@ public class ArchiverTask implements Callable<URL> {
 		try {
 			// TODO
 		} finally {
-			
+
 		}
 	}
 

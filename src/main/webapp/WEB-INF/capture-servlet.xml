@@ -21,12 +21,12 @@
 	<!-- <import resource="cas.xml" /> -->
 
 	<jaxrs:server id="restserv" address="/" beanNames="app">
-<jaxrs:providers>
-    <bean class="org.apache.cxf.jaxrs.provider.json.JSONProvider">
-        <property name="dropRootElement" value="true" />
-        <property name="supportUnwrapped" value="true" />
-    </bean>
-</jaxrs:providers>
+		<jaxrs:providers>
+			<bean class="org.apache.cxf.jaxrs.provider.json.JSONProvider">
+				<property name="dropRootElement" value="true" />
+				<property name="supportUnwrapped" value="true" />
+			</bean>
+		</jaxrs:providers>
 	</jaxrs:server>
 
 	<task:executor id="executor" />
@@ -35,4 +35,5 @@
 	<bean name="lister" class="manchester.synbiochem.datacapture.DirectoryLister" />
 	<bean name="seek" class="manchester.synbiochem.datacapture.SeekConnector" />
 	<bean name="taskStore" class="manchester.synbiochem.datacapture.TaskStore" />
+	<bean name="info" class="manchester.synbiochem.datacapture.InformationSource" />
 </beans>

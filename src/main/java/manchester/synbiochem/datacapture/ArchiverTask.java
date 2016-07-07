@@ -64,7 +64,7 @@ public class ArchiverTask implements Callable<URL> {
 		File sd = sourceDir;
 		do {
 			sd = sd.getParentFile();
-		} while (sd != null && info.hasMachineName(sd.getName()));
+		} while (sd != null && !info.hasMachineName(sd.getName()));
 		return sd == null ? sourceDir.getParentFile().getName() : sd.getName();
 	}
 

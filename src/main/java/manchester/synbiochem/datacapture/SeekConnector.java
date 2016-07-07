@@ -60,6 +60,7 @@ public class SeekConnector {
 	private Log log = LogFactory.getLog(SeekConnector.class);
 	private static final String SEEK = "http://www.sysmo-db.org/2010/xml/rest";
 	private static final String XLINK = "http://www.w3.org/1999/xlink";
+	private static final String DC = "http://purl.org/dc/elements/1.1/";
 	private static DocumentBuilderFactory dbf;
 	static {
 		dbf = DocumentBuilderFactory.newInstance();
@@ -491,11 +492,24 @@ public class SeekConnector {
 		return studies;
 	}
 
+	private String getInstitutionName() {
+		try {
+			Element d = get("/institutions/" + institution + ".xml")
+					.getDocumentElement();
+			return d.getElementsByTagNameNS(DC, "title").item(0)
+					.getTextContent();
+		} catch (IOException | SAXException | ParserConfigurationException e) {
+			log.error("unexpected problem when fetching institution info", e);
+			return institution + " (unsafe)";
+		}
+	}
+
 	@PostConstruct
 	private void firstFetch() {
 		// write this information into the log, deliberately
 		log.info("there are " + getUsers().size() + " users");
 		log.info("there are " + getAssays().size() + " assays");
+		log.info("institution is set to " + getInstitutionName());
 	}
 
 	private String getAuthToken() throws IOException {

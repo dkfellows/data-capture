@@ -31,8 +31,9 @@ import org.apache.commons.logging.LogFactory;
  * <li>List all the files to be archived.
  * <li>Copy the files from the instrument to the operational data store.
  * <li>Compute the metadata about each file.
- * <li>Construct the bagit.
- * <li>Instantiate the files on the Isilon.
+ * <li>Construct the bagit. <i>(Not yet done.)</i>
+ * <li>Instantiate the files on the NAS.
+ * <li>Tell SEEK about the files.
  * </ol>
  * 
  * @author Donal Fellows

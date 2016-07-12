@@ -173,6 +173,8 @@ public interface Interface {
 		@XmlElement
 		public SeekConnector.Assay assay;
 		@XmlElement
+		public SeekConnector.Study study;
+		@XmlElement
 		public List<Directory> directory = new ArrayList<>();
 		@XmlElement(name = "created-asset")
 		public URI createdAsset;

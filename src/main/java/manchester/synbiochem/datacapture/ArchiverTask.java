@@ -19,8 +19,6 @@ import java.util.TimeZone;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
-import manchester.synbiochem.datacapture.SeekConnector.Assay;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -60,26 +58,6 @@ public class ArchiverTask implements Callable<URL> {
 	Long finish;
 	private DateFormat ISO8601;
 
-	private static String getMachineName(File sourceDir, InformationSource info) {
-		File sd = sourceDir;
-		do {
-			sd = sd.getParentFile();
-		} while (sd != null && !info.hasMachineName(sd.getName()));
-		return sd == null ? sourceDir.getParentFile().getName() : sd.getName();
-	}
-
-	private static String getProjectName(String machine,
-			MetadataRecorder metadata, InformationSource info) {
-		String prefix = info.getInstrumentType(machine);
-		String project = "capture";
-		Assay experiment = metadata.getExperiment();
-		if (experiment.projectName != null)
-			project = experiment.projectName.replaceAll("[^a-zA-Z0-9]+", "-");
-		if (project.equalsIgnoreCase("synbiochem"))
-			project = "other";
-		return prefix + "-" + (project.toLowerCase());
-	}
-
 	public ArchiverTask(MetadataRecorder metadata, File archiveRoot,
 			File metastoreRoot, URI cifsRoot, File directoryToArchive,
 			SeekConnector seek, InformationSource infoSource) {
@@ -87,8 +65,8 @@ public class ArchiverTask implements Callable<URL> {
 		ISO8601.setTimeZone(UTC);
 		this.metadata = metadata;
 
-		String machine = getMachineName(directoryToArchive, infoSource);
-		String project = getProjectName(machine, metadata, infoSource);
+		String machine = infoSource.getMachineName(directoryToArchive);
+		String project = infoSource.getProjectName(machine, metadata);
 		// Real root is $archiveRoot/MS-$project/$machine
 		this.archiveRoot = new File(new File(archiveRoot, project), machine);
 		this.cifsRoot = cifsRoot.resolve(project + "/" + machine);

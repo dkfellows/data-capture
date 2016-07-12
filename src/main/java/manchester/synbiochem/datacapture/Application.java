@@ -5,7 +5,10 @@ import static javax.ws.rs.core.Response.created;
 import static javax.ws.rs.core.Response.seeOther;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
+import java.net.URL;
+import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -18,6 +21,7 @@ import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
+import manchester.synbiochem.datacapture.SeekConnector.Study;
 import manchester.synbiochem.datacapture.SeekConnector.User;
 
 import org.apache.commons.logging.Log;
@@ -33,6 +37,8 @@ public class Application implements Interface {
 	TaskStore tasks;
 	@Autowired
 	DirectoryLister lister;
+	@Autowired
+	InformationSource info;
 	private Log log = LogFactory.getLog(getClass());
 
 	@Override
@@ -113,17 +119,21 @@ public class Application implements Interface {
 
 		User u0 = proposedTask.submitter;
 		if (u0 == null)
-			throw new WebApplicationException("bad user", BAD_REQUEST);
+			throw new WebApplicationException("no user specified", BAD_REQUEST);
 		if (u0.url == null)
 			throw new WebApplicationException("no user url", BAD_REQUEST);
 		User user = seek.getUser(u0.url);
 
 		Assay a0 = proposedTask.assay;
-		if (a0 == null)
-			throw new WebApplicationException("bad assay", BAD_REQUEST);
-		if (a0.url == null)
+		Study s0 = proposedTask.study;
+		if (a0 == null && s0 == null)
+			throw new WebApplicationException("no assay or study specified", BAD_REQUEST);
+		if (a0 != null && s0 != null)
+			throw new WebApplicationException("must not specify both assay and study", BAD_REQUEST);
+		if (a0 != null && a0.url == null)
 			throw new WebApplicationException("no assay url", BAD_REQUEST);
-		Assay assay = seek.getAssay(a0.url);
+		if (s0 != null && s0.url == null)
+			throw new WebApplicationException("no study url", BAD_REQUEST);
 
 		List<Directory> d0 = proposedTask.directory;
 		if (d0 == null)
@@ -133,11 +143,37 @@ public class Application implements Interface {
 			throw new WebApplicationException(
 					"need at least one directory to archive", BAD_REQUEST);
 
-		String id = tasks.newTask(user, assay, dirs);
+		String id;
+		if (a0 != null)
+			id = createTask(user, a0, dirs);
+		else
+			id = createTask(user, s0, dirs);
 		log.info("created task " + id + " to archive " + dirs.get(0));
 		UriBuilder ub = ui.getAbsolutePathBuilder().path("{id}");
 		return created(ub.build(id)).entity(tasks.describeTask(id, ub))
 				.type("application/json").build();
+	}
+
+	private String createTask(User user, Assay a0, List<String> dirs) {
+		Assay assay = seek.getAssay(a0.url);
+		return tasks.newTask(user, assay, dirs);
+	}
+
+	private static final String DESCRIPTION_TEMPLATE = "Capture of data relating to '%s' from the %s instrument in the %s project at %s.";
+
+	private String createTask(User user, Study s0, List<String> dirs) {
+		Study study = seek.getStudy(s0.url);
+		String machine = info.getMachineName(dirs.get(0));
+		String project = info.getProjectName(machine, study);
+		String now = DateFormat.getInstance().format(Calendar.getInstance());
+		// Not the greatest way of creating a title, but not too problematic either.
+		String title = dirs.get(0).replaceFirst("/+$", "")
+				.replaceFirst(".*/", "").replace("_", " ");
+		String description = String.format(DESCRIPTION_TEMPLATE, title,
+				machine, project, now);
+		URL url = seek.createExperimentalAssay(user, study, description, title);
+		Assay assay = seek.getAssay(url);
+		return tasks.newTask(user, assay, dirs);
 	}
 
 	@Override

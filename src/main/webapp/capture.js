@@ -388,97 +388,62 @@ $(function() {
 	var retrievedAssays = undefined;
 	function buildTree(studies, assays) {
 		var treeData = {};
+		function addTreeNode(key, node) {
+			if (key !== undefined && treeData[key] === undefined) {
+				node.id = key;
+				treeData[key] = node;
+			}
+			if (key !== undefined)
+				return key;
+			return node.parent;
+		}
 		studies.forEach(function(item){
-			var parentNode;
-			if (item["project-url"] !== undefined && treeData[item["project-url"]] === undefined) {
-				parentNode = "#";
-				treeData[item["project-url"]] = {
-					id: item["project-url"],
-					parent: parentNode,
-					icon: projectIcon,
-					state: { opened: true },
-					text: "Project: " + item["project-name"]
-				};
-			}
-			if (item["investigation-url"] !== undefined && treeData[item["investigation-url"]] === undefined) {
-				parentNode = "#";
-				if (item["project-url"] !== undefined)
-					parentNode = item["project-url"];
-				treeData[item["investigation-url"]] = {
-					id: item["investigation-url"],
-					parent: parentNode,
-					icon: investigationIcon,
-					state: { opened: true },
-					text: "Investigation: " + item["investigation-name"]
-				};
-			}
-			parentNode = "#";
-			if (item["investigation-url"] !== undefined)
-				parentNode = item["investigation-url"];
-			else if (item["project-url"] !== undefined)
-				parentNode = item["project-url"];
-			treeData[item.url] = {
-				id: item.url,
+			var parentNode = addTreeNode(item["project-url"], {
+				parent: "#",
+				icon: projectIcon,
+				state: { opened: true },
+				text: "Project: " + item["project-name"]
+			});
+			parentNode = addTreeNode(item["investigation-url"], {
+				parent: parentNode,
+				icon: investigationIcon,
+				state: { opened: true },
+				text: "Investigation: " + item["investigation-name"]
+			});
+			parentNode = addTreeNode(item.url, {
 				parent: parentNode,
 				icon: studyIcon,
-				text: "Study: " + item.item
-			};
+				text: "Study: " + item.name
+			});
 		});
 		assays.forEach(function(item) {
-			var parentNode;
-			if (item["project-url"] !== undefined && treeData[item["project-url"]] === undefined) {
-				parentNode = "#";
-				treeData[item["project-url"]] = {
-					id: item["project-url"],
-					parent: parentNode,
-					icon: projectIcon,
-					state: { opened: true },
-					text: "Project: " + item["project-name"]
-				};
-			}
-			if (item["investigation-url"] !== undefined && treeData[item["investigation-url"]] === undefined) {
-				parentNode = "#";
-				if (item["project-url"] !== undefined)
-					parentNode = item["project-url"];
-				treeData[item["investigation-url"]] = {
-					id: item["investigation-url"],
-					parent: parentNode,
-					icon: investigationIcon,
-					state: { opened: true },
-					text: "Investigation: " + item["investigation-name"]
-				};
-			}
-			if (item["study-url"] !== undefined && treeData[item["study-url"]] === undefined) {
-				parentNode = "#";
-				if (item["investigation-url"] !== undefined)
-					parentNode = item["investigation-url"];
-				else if (item["project-url"] !== undefined)
-					parentNode = item["project-url"];
-				treeData[item["study-url"]] = {
-					id: item["study-url"],
-					parent: parentNode,
-					icon: studyIcon,
-					text: "Study: " + item["study-name"]
-				};
-			}
-			parentNode = "#";
-			if (item["study-url"] !== undefined)
-				parentNode = item["study-url"];
-			else if (item["investigation-url"] !== undefined)
-				parentNode = item["investigation-url"];
-			else if (item["project-url"] !== undefined)
-				parentNode = item["project-url"];
-			treeData[item.url] = {
-				id: item.url,
-				parent: parentNode,
-				icon: assayIcon,
-				text: "Assay: " + item.name
-			};
+			var parentNode = addTreeNode(item["project-url"], {
+				parent : "#",
+				icon : projectIcon,
+				state : { opened : true },
+				text : "Project: " + item["project-name"]
+			});
+			parentNode = addTreeNode(item["investigation-url"], {
+				parent : parentNode,
+				icon : investigationIcon,
+				state : { opened : true },
+				text : "Investigation: " + item["investigation-name"]
+			});
+			parentNode = addTreeNode(item["study-url"], {
+				parent : parentNode,
+				icon : studyIcon,
+				text : "Study: " + item["study-name"]
+			});
+			parentNode = addTreeNode(item.url, {
+				parent : parentNode,
+				icon : assayIcon,
+				text : "Assay: " + item.name
+			});
 		});
 		var theData = Object.keys(treeData).map(function(x){return treeData[x];});
 		theData.sort(function(a,b){return a.text<b.text?-1:a.text>b.text?1:0;});
 		$("#experimenttree").jstree({
-			core: {"data": theData, multiple: false}
+			core: { "data": theData, multiple: false }
 		}).on('select_node.jstree', function(node, selection){
 			var sel = selection.selected[0];
 			if (sel.match(/assays/)) {
@@ -501,7 +466,7 @@ $(function() {
 			console.log("Study #" + (++c), item);
 		});
 		if (retrievedAssays !== undefined)
-			buildTree(retrieveStudies, retrievedAssays);
+			buildTree(retrievedStudies, retrievedAssays);
 	});
 	getJSON($("#apiAssays")[0].href, function(data) {
 		retrievedAssays = dejson(data.assay);
@@ -510,7 +475,7 @@ $(function() {
 			console.log("Assay #" + (++c), item);
 		});
 		if (retrievedStudies !== undefined)
-			buildTree(retrieveStudies, retrievedAssays);
+			buildTree(retrievedStudies, retrievedAssays);
 	});
 	var dataLeaves = {};
 	getJSON($("#apiDirs")[0].href, function(data) {

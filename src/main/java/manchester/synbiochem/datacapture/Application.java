@@ -59,6 +59,13 @@ public class Application implements Interface {
 	}
 
 	@Override
+	public StudyList studies() {
+		StudyList sl = new StudyList();
+		sl.studies = new ArrayList<>(seek.getStudies());
+		return sl;
+	}
+
+	@Override
 	public AssayList assays() {
 		AssayList al = new AssayList();
 		al.assays = new ArrayList<>(seek.getAssays());

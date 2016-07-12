@@ -444,9 +444,15 @@ public class SeekConnector {
 		}
 	}
 
+	private static int CACHE_TIME = 60 * 1000; // 60 seconds
+	private Long assayCacheTimestamp;
 	private List<Assay> cachedAssays = Collections.emptyList();
 
 	public List<Assay> getAssays() {
+		long now = System.currentTimeMillis();
+		if (assayCacheTimestamp != null && assayCacheTimestamp + CACHE_TIME > now) {
+			return cachedAssays;
+		}
 		List<Assay> assays = new ArrayList<>();
 		try {
 			Document d = get("/assays.xml?page=all");
@@ -457,20 +463,26 @@ public class SeekConnector {
 			log.debug("found " + assayElements.getLength() + " assays");
 			for (int i = 0; i < assayElements.getLength(); i++)
 				assays.add(new Assay(assayElements.item(i)));
-			for (Assay assay : assays)
-				addExtra(assay);
-			sort(assays, assayComparator);
 		} catch (IOException | SAXException | ParserConfigurationException e) {
 			log.warn("falling back to old assay list due to " + e);
 			return cachedAssays;
 		}
+		for (Assay assay : assays)
+			addExtra(assay);
+		sort(assays, assayComparator);
 		cachedAssays = assays;
+		assayCacheTimestamp = now;
 		return assays;
 	}
 
+	private Long studyCacheTimestamp;
 	private List<Study> cachedStudies = Collections.emptyList();
 
 	public List<Study> getStudies() {
+		long now = System.currentTimeMillis();
+		if (studyCacheTimestamp != null && studyCacheTimestamp + CACHE_TIME > now) {
+			return cachedStudies;
+		}
 		List<Study> studies = new ArrayList<>();
 		try {
 			Document d = get("/studies.xml?page=all");
@@ -481,14 +493,15 @@ public class SeekConnector {
 			log.debug("found " + studyElements.getLength() + " studies");
 			for (int i = 0; i < studyElements.getLength(); i++)
 				studies.add(new Study(studyElements.item(i)));
-			for (Study study : studies)
-				addExtra(study);
-			sort(studies, studyComparator);
 		} catch (IOException | SAXException | ParserConfigurationException e) {
 			log.warn("falling back to old study list due to " + e);
 			return cachedStudies;
 		}
+		for (Study study : studies)
+			addExtra(study);
+		sort(studies, studyComparator);
 		cachedStudies = studies;
+		studyCacheTimestamp = now;
 		return studies;
 	}
 

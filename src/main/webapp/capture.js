@@ -293,6 +293,8 @@ function updateAssays() {
 	});
 }
 
+/** What is the currently-selected study? */
+var theCurrentStudy = undefined;
 /** What is the currently-selected assay? */
 var theCurrentAssay = undefined;
 /** What is the currently-selected directory? */
@@ -308,22 +310,28 @@ $(function() {
 	function createTask() {
 		var theUser = $("#users option:selected").val();
 		var theAssay = theCurrentAssay;
+		var theStudy = theCurrentStudy;
 		var theDir = theCurrentDir;
-		if (theUser === undefined || theAssay === undefined || theDir === undefined) {
-			alert("please select something in all fields");
+		if (theUser === undefined || (theAssay === undefined && theStudy === undefined) || theDir === undefined) {
+			alert("Please select something in all three fields");
 			return false;
 		}
 		var request = {
 			submitter : {
 				url : theUser
 			},
-			assay : {
-				url : theAssay
-			},
 			directory : [ {
 				name : theDir
 			} ]
 		};
+		if (theAssay !== undefined)
+			request.assay = {
+				url : theAssay
+			};
+		if (theStudy !== undefined)
+			request.study = {
+				url : theStudy
+			};
 		dialog.dialog("close");
 		postJSON($("#apiTasks")[0].href, request, function(data) {
 			addTaskRow($("#tasks"), data);
@@ -332,10 +340,11 @@ $(function() {
 	}
 	function updateEnabled() {
 		var theUser = $("#users option:selected").val();
+		var theStudy = theCurrentStudy;
 		var theAssay = theCurrentAssay;
 		var theDir = theCurrentDir;
 		console.log("u:", theUser, "a:", theAssay, "d:", theDir);
-		var disabled = (theUser === undefined || theAssay === undefined || theDir === undefined);
+		var disabled = (theUser === undefined || (theStudy === undefined && theAssay === undefined) || theDir === undefined);
 		$("#newOK").button("option", "disabled", disabled);
 	}
 	dialog = $("#new").dialog({
@@ -375,11 +384,13 @@ $(function() {
 		});
 		sortChildren(theUsers, "sort-key");
 	});
-	getJSON($("#apiAssays")[0].href, function(data) {
+	var retrievedStudies = undefined;
+	var retrievedAssays = undefined;
+	function buildTree(studies, assays) {
 		var treeData = {};
-		dejson(data.assay).forEach(function(item) {
+		studies.forEach(function(item){
 			var parentNode;
-			if (item["project-url"] !== undefined) {
+			if (item["project-url"] !== undefined && treeData[item["project-url"]] === undefined) {
 				parentNode = "#";
 				treeData[item["project-url"]] = {
 					id: item["project-url"],
@@ -389,7 +400,7 @@ $(function() {
 					text: "Project: " + item["project-name"]
 				};
 			}
-			if (item["investigation-url"] !== undefined) {
+			if (item["investigation-url"] !== undefined && treeData[item["investigation-url"]] === undefined) {
 				parentNode = "#";
 				if (item["project-url"] !== undefined)
 					parentNode = item["project-url"];
@@ -401,7 +412,43 @@ $(function() {
 					text: "Investigation: " + item["investigation-name"]
 				};
 			}
-			if (item["study-url"] !== undefined) {
+			parentNode = "#";
+			if (item["investigation-url"] !== undefined)
+				parentNode = item["investigation-url"];
+			else if (item["project-url"] !== undefined)
+				parentNode = item["project-url"];
+			treeData[item.url] = {
+				id: item.url,
+				parent: parentNode,
+				icon: studyIcon,
+				text: "Study: " + item.item
+			};
+		});
+		assays.forEach(function(item) {
+			var parentNode;
+			if (item["project-url"] !== undefined && treeData[item["project-url"]] === undefined) {
+				parentNode = "#";
+				treeData[item["project-url"]] = {
+					id: item["project-url"],
+					parent: parentNode,
+					icon: projectIcon,
+					state: { opened: true },
+					text: "Project: " + item["project-name"]
+				};
+			}
+			if (item["investigation-url"] !== undefined && treeData[item["investigation-url"]] === undefined) {
+				parentNode = "#";
+				if (item["project-url"] !== undefined)
+					parentNode = item["project-url"];
+				treeData[item["investigation-url"]] = {
+					id: item["investigation-url"],
+					parent: parentNode,
+					icon: investigationIcon,
+					state: { opened: true },
+					text: "Investigation: " + item["investigation-name"]
+				};
+			}
+			if (item["study-url"] !== undefined && treeData[item["study-url"]] === undefined) {
 				parentNode = "#";
 				if (item["investigation-url"] !== undefined)
 					parentNode = item["investigation-url"];
@@ -439,8 +486,31 @@ $(function() {
 			} else {
 				theCurrentAssay = undefined;
 			}
+			if (sel.match(/studies/)) {
+				theCurrentStudy = sel;
+			} else {
+				theCurrentStudy = undefined;
+			}
 			updateEnabled();
 		});
+	}
+	getJSON($("#apiStudies")[0].href, function(data){
+		retrievedStudies = dejson(data.study);
+		var c = 0
+		retrievedStudies.forEach(function(item){
+			console.log("Study #" + (++c), item);
+		});
+		if (retrievedAssays !== undefined)
+			buildTree(retrieveStudies, retrievedAssays);
+	});
+	getJSON($("#apiAssays")[0].href, function(data) {
+		retrievedAssays = dejson(data.assay);
+		var c = 0;
+		retrievedAssays.forEach(function(item) {
+			console.log("Assay #" + (++c), item);
+		});
+		if (retrievedStudies !== undefined)
+			buildTree(retrieveStudies, retrievedAssays);
 	});
 	var dataLeaves = {};
 	getJSON($("#apiDirs")[0].href, function(data) {

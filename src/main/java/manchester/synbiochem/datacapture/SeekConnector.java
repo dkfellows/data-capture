@@ -33,6 +33,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response.Status;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlSchemaType;
@@ -137,6 +138,39 @@ public class SeekConnector {
 		}
 
 		Assay(Node node) throws MalformedURLException, DOMException {
+			Element assay = (Element) node;
+			url = new URL(assay.getAttributeNS(XLINK, "href"));
+			id = Integer.parseInt(assay.getAttribute("id"));
+			name = assay.getAttributeNS(XLINK, "title");
+		}
+	}
+
+	@SuppressWarnings("serial")
+	@XmlRootElement(name = "study")
+	@XmlType(propOrder = {})
+	public static class Study implements Serializable {
+		@XmlElement
+		public String name;
+		@XmlElement
+		public Integer id;
+		@XmlElement(required = true)
+		@XmlSchemaType(name = "anyUri")
+		public URL url;
+		@XmlElement(name = "project-name")
+		String projectName;
+		@XmlElement(name = "project-url")
+		@XmlSchemaType(name = "anyUri")
+		public URL projectUrl;
+		@XmlElement(name = "investigation-name")
+		String investigationName;
+		@XmlElement(name = "investigation-url")
+		@XmlSchemaType(name = "anyUri")
+		public URL investigationUrl;
+
+		public Study() {
+		}
+
+		Study(Node node) throws MalformedURLException, DOMException {
 			Element assay = (Element) node;
 			url = new URL(assay.getAttributeNS(XLINK, "href"));
 			id = Integer.parseInt(assay.getAttribute("id"));
@@ -256,6 +290,12 @@ public class SeekConnector {
 			return o1.id - o2.id;
 		}
 	};
+	private static final Comparator<Study> studyComparator = new Comparator<Study>() {
+		@Override
+		public int compare(Study o1, Study o2) {
+			return o1.id - o2.id;
+		}
+	};
 
 	protected List<User> getUserList() throws SAXException, IOException,
 			ParserConfigurationException {
@@ -285,6 +325,23 @@ public class SeekConnector {
 				log.warn("bad URI returned from SEEK; skipping to next", e);
 			}
 		throw new WebApplicationException("no such assay", BAD_REQUEST);
+	}
+
+	public Study getStudy(URL studyURL) {
+		URI studyURI;
+		try {
+			studyURI = studyURL.toURI();
+		} catch (URISyntaxException e) {
+			throw new WebApplicationException(e, BAD_REQUEST);
+		}
+		for (Study assay : getStudies())
+			try {
+				if (assay.url.toURI().equals(studyURI))
+					return assay;
+			} catch (URISyntaxException e) {
+				log.warn("bad URI returned from SEEK; skipping to next", e);
+			}
+		throw new WebApplicationException("no such study", BAD_REQUEST);
 	}
 
 	private static List<Element> getElements(Element parent, String namespace,
@@ -347,9 +404,55 @@ public class SeekConnector {
 		}
 	}
 
+	private void addExtra(Study s) {
+		Element doc ;
+		try {
+			String u = s.url.toString().replaceAll("^.*//[^/]*/", "");
+			doc = get(u+".xml").getDocumentElement();
+		} catch (Exception e) {
+			log.warn("problem retrieving information from assay " + s.url, e);
+			return;
+		}
+		try {
+			for (Element inv : getElements(doc, SEEK, "associated",
+					"investigations", "investigation")) {
+				s.investigationName = inv.getAttributeNS(XLINK, "title");
+				s.investigationUrl = new URL(inv.getAttributeNS(XLINK, "href"));
+				break;
+			}
+			for (Element prj : getElements(doc, SEEK, "associated", "projects",
+					"project")) {
+				String name = prj.getAttributeNS(XLINK, "title");
+				if (!name.equalsIgnoreCase("synbiochem")) {
+					s.projectName = name;
+					s.projectUrl = new URL(prj.getAttributeNS(XLINK, "href"));
+					break;
+				}
+			}
+		} catch (Exception e) {
+			log.warn("problem when filling in information from assay " + s.url, e);
+		}
+		if (s.investigationName == null)
+			s.investigationName = "UNKNOWN";
+		if (s.projectName == null) {
+			s.projectName = "SynBioChem";
+			try {
+				s.projectUrl = new URL("http://synbiochem.fairdomhub.org/projects/5");
+			} catch (MalformedURLException e) {
+				// Should be unreachable
+			}
+		}
+	}
+
+	private static int CACHE_TIME = 60 * 1000; // 60 seconds
+	private Long assayCacheTimestamp;
 	private List<Assay> cachedAssays = Collections.emptyList();
 
 	public List<Assay> getAssays() {
+		long now = System.currentTimeMillis();
+		if (assayCacheTimestamp != null && assayCacheTimestamp + CACHE_TIME > now) {
+			return cachedAssays;
+		}
 		List<Assay> assays = new ArrayList<>();
 		try {
 			Document d = get("/assays.xml?page=all");
@@ -360,15 +463,46 @@ public class SeekConnector {
 			log.debug("found " + assayElements.getLength() + " assays");
 			for (int i = 0; i < assayElements.getLength(); i++)
 				assays.add(new Assay(assayElements.item(i)));
-			for (Assay assay : assays)
-				addExtra(assay);
-			sort(assays, assayComparator);
 		} catch (IOException | SAXException | ParserConfigurationException e) {
 			log.warn("falling back to old assay list due to " + e);
 			return cachedAssays;
 		}
+		for (Assay assay : assays)
+			addExtra(assay);
+		sort(assays, assayComparator);
 		cachedAssays = assays;
+		assayCacheTimestamp = now;
 		return assays;
+	}
+
+	private Long studyCacheTimestamp;
+	private List<Study> cachedStudies = Collections.emptyList();
+
+	public List<Study> getStudies() {
+		long now = System.currentTimeMillis();
+		if (studyCacheTimestamp != null && studyCacheTimestamp + CACHE_TIME > now) {
+			return cachedStudies;
+		}
+		List<Study> studies = new ArrayList<>();
+		try {
+			Document d = get("/studies.xml?page=all");
+			Element items = (Element) d.getDocumentElement()
+					.getElementsByTagNameNS(SEEK, "items").item(0);
+			NodeList studyElements = items
+					.getElementsByTagNameNS(SEEK, "study");
+			log.debug("found " + studyElements.getLength() + " studies");
+			for (int i = 0; i < studyElements.getLength(); i++)
+				studies.add(new Study(studyElements.item(i)));
+		} catch (IOException | SAXException | ParserConfigurationException e) {
+			log.warn("falling back to old study list due to " + e);
+			return cachedStudies;
+		}
+		for (Study study : studies)
+			addExtra(study);
+		sort(studies, studyComparator);
+		cachedStudies = studies;
+		studyCacheTimestamp = now;
+		return studies;
 	}
 
 	private String getInstitutionName() {
@@ -406,41 +540,49 @@ public class SeekConnector {
 		throw new IOException("no authenticity token found");
 	}
 
-	// TODO linkFileAsset(User user, Assay assay, String name,
-	// String title, String type, URL content)
-	public URL uploadFileAsset(User user, Assay assay, String name,
-			String description, String title, String type, String content)
+	private static Status postForm(HttpURLConnection c, MultipartFormData form)
 			throws IOException {
-		MultipartFormData form = makeFileUploadForm(user, assay, name, description, title,
-				type, content);
+		c.setInstanceFollowRedirects(false);
+		c.setDoOutput(true);
+		c.setRequestMethod("POST");
+		c.setRequestProperty("Content-Type", form.contentType());
+		c.setRequestProperty("Content-Length", form.length());
+		c.connect();
+		try (OutputStream os = c.getOutputStream()) {
+			os.write(form.content());
+		}
+		return fromStatusCode(c.getResponseCode());
+	}
 
+	private void readErrorFromConnection(HttpURLConnection c, String message,
+			String logPrefix) throws IOException {
+		InputStream errors = c.getErrorStream();
+		if (errors != null) {
+			for (String line : readLines(errors))
+				log.error(logPrefix + ": " + line);
+			errors.close();
+		}
+		throw new WebApplicationException(String.format(message,
+				c.getResponseCode(), c.getResponseMessage()),
+				INTERNAL_SERVER_ERROR);
+	}
+
+	public URL createExperimentalAssay(User user, Study study, 
+			String description, String title) {
 		try {
-			HttpURLConnection c = connect("/data_files");
+			MultipartFormData form = makeAssayCreateForm(user, study, title,
+					description, JERM_EXPERIMENT);
+			HttpURLConnection c = connect("/assays");
 			try {
-				c.setInstanceFollowRedirects(false);
-				c.setDoOutput(true);
-				c.setRequestMethod("POST");
-				c.setRequestProperty("Content-Type", form.contentType());
-				c.setRequestProperty("Content-Length", form.length());
-				c.connect();
-				try (OutputStream os = c.getOutputStream()) {
-					os.write(form.content());
-				}
-				switch (fromStatusCode(c.getResponseCode())) {
+				switch (postForm(c, form)) {
 				case CREATED:
 				case FOUND:
 					return new URL(seek, c.getHeaderField("Location"));
+				default:
+					readErrorFromConnection(c, "problem in form post",
+							"write to SEEK failed with code %d: %s");
 				case OK:
 					return null;
-				default:
-					InputStream errors = c.getErrorStream();
-					if (errors != null)
-						for (String line : readLines(errors))
-							log.error("problem in file upload: " + line);
-					throw new WebApplicationException(
-							"upload failed with code " + c.getResponseCode()
-									+ ": " + c.getResponseMessage(),
-							INTERNAL_SERVER_ERROR);
 				}
 			} finally {
 				c.disconnect();
@@ -448,6 +590,76 @@ public class SeekConnector {
 		} catch (IOException e) {
 			throw new WebApplicationException("HTTP error", e);
 		}
+	}
+
+	// TODO linkFileAsset(User user, Assay assay, String name,
+	// String title, String type, URL content)
+	public URL uploadFileAsset(User user, Assay assay, String name,
+			String description, String title, String type, String content) {
+		try {
+			MultipartFormData form = makeFileUploadForm(user, assay, name,
+					description, title, type, content);
+			HttpURLConnection c = connect("/data_files");
+			try {
+				switch (postForm(c, form)) {
+				case CREATED:
+				case FOUND:
+					return new URL(seek, c.getHeaderField("Location"));
+				default:
+					readErrorFromConnection(c, "problem in file upload",
+							"upload failed with code %d: %s");
+				case OK:
+					return null;
+				}
+			} finally {
+				c.disconnect();
+			}
+		} catch (IOException e) {
+			throw new WebApplicationException("HTTP error", e);
+		}
+	}
+
+	private void addPermissionsToForm(MultipartFormData form) {
+		form.addField("sharing[permissions][contributor_types]", "[]");
+		form.addField("sharing[permissions][values]", "{}");
+		form.addField("sharing[access_type_0]", "0");
+		form.addField("sharing[sharing_scope]", "2");
+		form.addField("sharing[your_proj_access_type]", "4");
+		form.addField("sharing[access_type_2]", "1");
+		form.addField("sharing[access_type_4]", "1");
+		form.addField("proj_project[select]");
+		form.addField("proj_access_type_select", "0");
+		form.addField("individual_people_access_type_select", "0");
+	}
+
+	private static final String JERM_EXPERIMENT = "http://www.mygrid.org.uk/ontology/JERMOntology#Experimental_assay_type";
+	private static final String JERM_TECH = "http://www.mygrid.org.uk/ontology/JERMOntology#Technology_type";
+
+	private MultipartFormData makeAssayCreateForm(User user, Study study,
+			String title, String description, String assayType) throws IOException {
+		MultipartFormData form = new MultipartFormData("1234567890");
+		form.addField("utf8", "\u2713"); // ✓
+		form.addField("authenticity_token", getAuthToken());
+		form.addField("assay[create_from_asset]");
+		form.addField("assay[title]", title);
+		form.addField("assay[description]", description);
+		form.addField("assay[study_id]", study.id);
+		form.addField("assay[assay_class_id]", 1); // ?
+		form.addField("assay[assay_type_uri]", assayType);
+		form.addField("assay[technology_type_uri]", JERM_TECH);
+		form.addField("possible_organisms", 0);
+		form.addField("culture_growth", "Not specified");// ?
+		addPermissionsToForm(form);
+		form.addField("tag_list");
+		form.addField("creator-typeahead");
+		form.addField("creators", "[[\"" + user.name + "\"," + user.id + "]]");
+		form.addField("adv_project_id");
+		form.addField("adv_institution_id", institution);
+		form.addField("assay[other_creators]");
+		form.addField("possible_sops", 0);
+		form.addField("possible_publications", 0);
+		form.build();
+		return form;
 	}
 
 	private MultipartFormData makeFileUploadForm(User user, Assay assay, String name,
@@ -468,16 +680,7 @@ public class SeekConnector {
 		form.addField("data_file[project_ids][]");
 		form.addField("data_file[project_ids][]", projectID);
 		form.addField("data_file[license]", license);
-		form.addField("sharing[permissions][contributor_types]", "[]");
-		form.addField("sharing[permissions][values]", "{}");
-		form.addField("sharing[access_type_0]", 0);
-		form.addField("sharing[sharing_scope]", 2);// TODO hardcoded?
-		form.addField("sharing[your_proj_access_type]", 4);// TODO hardcoded?
-		form.addField("sharing[access_type_2]", 1);// TODO hardcoded?
-		form.addField("sharing[access_type_4]", 2);// TODO hardcoded?
-		form.addField("proj_project[select]");
-		form.addField("proj_access_type_select", 0);// TODO hardcoded?
-		form.addField("individual_people_access_type_select", 0);// TODO hardcoded?
+		addPermissionsToForm(form);
 		form.addField("tag_list");
 		form.addField("attribution-typeahead");
 		form.addField("attributions", "[]");

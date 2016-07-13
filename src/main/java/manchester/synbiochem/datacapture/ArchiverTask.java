@@ -1,5 +1,6 @@
 package manchester.synbiochem.datacapture;
 
+import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
 import static java.nio.file.Files.copy;
 import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
@@ -220,7 +221,7 @@ public class ArchiverTask implements Callable<URL> {
 		return dest;
 	}
 
-	static String resolveToURI(URI base, String part) {
+	static URI resolveToURI(URI base, String part) {
 		StringBuilder sb = new StringBuilder(part.length());
 		for (char ch : part.toCharArray()) {
 			if (Character.isAlphabetic(ch) || Character.isDigit(ch)) {
@@ -237,14 +238,14 @@ public class ArchiverTask implements Callable<URL> {
 				for (byte b : c.getBytes(UTF8))
 					sb.append(String.format("%%%02X", 0xFF & b));
 		}
-		return base.resolve(sb.toString()).toString();
+		return base.resolve(sb.toString());
 	}
 
 	/**
 	 * Get the metadata out of a single file.
 	 */
 	private void extractMetadatum(Entry ent) throws IOException {
-		String cifs = resolveToURI(cifsRoot, ent.getName());
+		String cifs = resolveToURI(cifsRoot, ent.getName()).toString();
 		metadata.addFile(ent.getName(), ent.getFile(), ent.getDestination(),
 				cifs);
 	}
@@ -278,15 +279,29 @@ public class ArchiverTask implements Callable<URL> {
 		}
 	}
 
+	private String describeEntryToSeek(Entry ent, String timestamp) {
+		String type = metadata.getFileType(ent.getFile());
+		// TODO Improve this description; we ought to have at least the instrument broken out into its own field.
+		return format(
+				"File copied from %s of (presumed) type %s; action timestamp %s",
+				ent.getFile(), type, timestamp);
+	}
+
 	/**
 	 * Send the metadata to SEEK.
 	 * 
 	 * @return the location on SEEK of the descriptor we uploaded.
 	 */
 	protected URL tellSeek() {
+		String time = ISO8601.format(new Date(start));
+		for (Entry ent : entries)
+			seek.linkFileAsset(metadata.getUser(), metadata.getExperiment(),
+					describeEntryToSeek(ent, time), "Experimental Results: "
+							+ (ent.getName().replaceFirst(".*/", "")),
+					resolveToURI(cifsRoot, ent.getName()));
+
 		metadata.get();
 		String instrument = directoryToArchive.getParentFile().getName();
-		String time = ISO8601.format(new Date(start));
 		return seek.uploadFileAsset(metadata.getUser(),
 				metadata.getExperiment(), "metadata.tsv",
 				"CSV document describing files copied from instrument "

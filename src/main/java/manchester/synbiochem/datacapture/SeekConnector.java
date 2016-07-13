@@ -171,10 +171,10 @@ public class SeekConnector {
 		}
 
 		Study(Node node) throws MalformedURLException, DOMException {
-			Element assay = (Element) node;
-			url = new URL(assay.getAttributeNS(XLINK, "href"));
-			id = Integer.parseInt(assay.getAttribute("id"));
-			name = assay.getAttributeNS(XLINK, "title");
+			Element study = (Element) node;
+			url = new URL(study.getAttributeNS(XLINK, "href"));
+			id = Integer.parseInt(study.getAttribute("id"));
+			name = study.getAttributeNS(XLINK, "title");
 		}
 	}
 

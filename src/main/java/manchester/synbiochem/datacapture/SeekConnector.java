@@ -577,6 +577,11 @@ public class SeekConnector {
 				switch (postForm(c, form)) {
 				case CREATED:
 				case FOUND:
+					/*
+					 * Invalidate the assay cache; we know there's something new
+					 * not in it.
+					 */
+					assayCacheTimestamp = null;
 					return new URL(seek, c.getHeaderField("Location"));
 				default:
 					readErrorFromConnection(c, "problem in form post",
@@ -729,7 +734,7 @@ public class SeekConnector {
 		form.addField("authenticity_token", getAuthToken());
 		form.addField("data_file[parent_name]");
 		form.addField("data_file[is_with_sample]");
-		form.addContent("content_blobs[][data]", "", "", "");
+		form.addContent("content_blobs[][data]", "", "application/octet-stream", "");
 		form.addField("content_blobs[][data_url]", location);
 		String name = location.getPath().replaceFirst(".*/", "");
 		form.addField("content_blobs[][original_filename]", name);

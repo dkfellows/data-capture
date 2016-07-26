@@ -302,6 +302,7 @@ public class ArchiverTask implements Callable<URL> {
 	 */
 	protected URL tellSeek() {
 		for (Entry ent : entries)
+			// TODO Do something useful with the links returned by this method
 			seek.linkFileAsset(metadata.getUser(), metadata.getExperiment(),
 					describeEntryToSeek(ent), titleOfSeekEntry(ent),
 					resolveToURI(cifsRoot, ent.getName()));

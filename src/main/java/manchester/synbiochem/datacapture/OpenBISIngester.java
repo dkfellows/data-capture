@@ -30,11 +30,11 @@ public class OpenBISIngester {
 		JSONObject obj = new JSONObject(json);
 		Map<String, Map<String, File>> map = new HashMap<>();
 		for (Object instObj : obj.keySet()) {
-			String instrument = instObj.toString();
+			String instrument = instObj.toString().toLowerCase();
 			JSONObject subobj = obj.getJSONObject(instrument);
 			Map<String, File> submap = new HashMap<>();
 			for (Object prjObj : subobj.keySet()) {
-				String project = prjObj.toString();
+				String project = prjObj.toString().toLowerCase();
 				String dir = subobj.getString(project);
 				submap.put(project, new File(dir));
 			}
@@ -91,7 +91,7 @@ public class OpenBISIngester {
 	}
 
 	protected File getDropbox(String instrument, String project) {
-		Map<String, File> map = dropboxDirectoryMap.get(instrument);
-		return map == null ? null : map.get(project);
+		Map<String, File> map = dropboxDirectoryMap.get(instrument.toLowerCase());
+		return map == null ? null : map.get(project.toLowerCase());
 	}
 }

@@ -54,6 +54,8 @@ public class TaskStore {
 	@Autowired
 	SeekConnector seek;
 	@Autowired
+	OpenBISIngester ingester;
+	@Autowired
 	InformationSource infoSource;
 	@Value("${cifs.root}")
 	private URI cifsRoot;
@@ -114,7 +116,7 @@ public class TaskStore {
 		assert assay != null && assay.url != null;
 		md.setExperiment(assay);
 		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot,
-				existingDirectory(dirs), seek, infoSource);
+				existingDirectory(dirs), seek, ingester, infoSource);
 		Future<URL> taskResult = executor.submit(at);
 		synchronized (this) {
 			String key;

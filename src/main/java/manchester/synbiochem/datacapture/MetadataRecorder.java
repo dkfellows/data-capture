@@ -22,6 +22,7 @@ import static org.json.JSONObject.NULL;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+import manchester.synbiochem.datacapture.ArchiverTask.Entry;
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
 import manchester.synbiochem.datacapture.SeekConnector.User;
 
@@ -61,6 +63,7 @@ public class MetadataRecorder {
 	private Assay assay;
 	private StringBuilder csvBuffer;
 	private CSVPrinter csv;
+	private JSONObject openbisExperiment;
 	private final Map<String, String> filetypeMap = new HashMap<>();
 
 	public MetadataRecorder(Tika tika) {
@@ -81,6 +84,7 @@ public class MetadataRecorder {
 		} catch (IOException e) {
 			throw new RuntimeException("unexpected IO failure", e);
 		}
+		// FIXME change column names
 		addRecord(EXPERIMENT, USER, TIME, FILE_ARCHIVE, FILE_ORIGIN, FILE_SHA1,
 				FILE_MD5, FILE_MIME, FILE_SIZE, FILE_TIME, FILE_CIFS);
 	}
@@ -88,6 +92,7 @@ public class MetadataRecorder {
 	/**
 	 * Force there to be exactly 11 columns in the CSV.
 	 */
+	// FIXME correct number of columns
 	private void addRecord(Object a1, Object a2, Object a3, Object a4,
 			Object a5, Object a6, Object a7, Object a8, Object a9, Object a10,
 			Object a11) {
@@ -203,6 +208,7 @@ public class MetadataRecorder {
 			o.put(TIME, timestamp);
 			o.put(ID, id);
 			o.put(FILES, files);
+			o.put("OpenBISExperiment", openbisExperiment);
 		}
 		return id;
 	}
@@ -248,5 +254,16 @@ public class MetadataRecorder {
 			}
 			return cmp;
 		}
+	}
+
+	public void setOpenBISExperiment(String experimentID, URL experimentURL) {
+		openbisExperiment = new JSONObject();
+		openbisExperiment.put("id", experimentID);
+		openbisExperiment.put("url", experimentURL.toString());
+		// TODO how to record in the CSV?
+	}
+
+	public void setSeekLocation(Entry ent, URL seekURL) {
+		// TODO How to record this information?
 	}
 }

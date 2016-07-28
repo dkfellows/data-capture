@@ -8,6 +8,7 @@ import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.FileAlreadyExistsException;
@@ -19,6 +20,8 @@ import java.util.List;
 import java.util.TimeZone;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
+
+import manchester.synbiochem.datacapture.OpenBISIngester.IngestionResult;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
@@ -50,10 +53,14 @@ public class ArchiverTask implements Callable<URL> {
 	private final File metastoreRoot;
 	private final URI cifsRoot;
 	private final SeekConnector seek;
+	private final OpenBISIngester ingester;
 	private final InformationSource info;
+	private final String machine;
+	private final String project;
 	private volatile int fileCount;
 	private volatile int metaCount;
 	private volatile int copyCount;
+	private volatile int linkCount;
 	private volatile boolean done;
 	private Future<?> javaTask;
 	private final List<Entry> entries;
@@ -63,19 +70,21 @@ public class ArchiverTask implements Callable<URL> {
 
 	public ArchiverTask(MetadataRecorder metadata, File archiveRoot,
 			File metastoreRoot, URI cifsRoot, File directoryToArchive,
-			SeekConnector seek, InformationSource infoSource) {
+			SeekConnector seek, OpenBISIngester ingester,
+			InformationSource infoSource) {
 		ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		ISO8601.setTimeZone(UTC);
 		this.metadata = metadata;
 
-		String machine = infoSource.getMachineName(directoryToArchive);
-		String project = infoSource.getProjectName(machine, metadata);
+		machine = infoSource.getMachineName(directoryToArchive);
+		project = infoSource.getProjectName(machine, metadata);
 		// Real root is $archiveRoot/MS-$project/$machine
 		this.archiveRoot = new File(new File(archiveRoot, project), machine);
 		this.cifsRoot = cifsRoot.resolve(project + "/" + machine);
 		this.metastoreRoot = metastoreRoot;
 		this.directoryToArchive = directoryToArchive;
 		this.seek = seek;
+		this.ingester = ingester;
 		this.entries = new ArrayList<>();
 		this.info = infoSource;
 		synchronized (ArchiverTask.class) {
@@ -128,23 +137,33 @@ public class ArchiverTask implements Callable<URL> {
 		}
 	}
 
+	private boolean isCancelled() {
+		return javaTask != null && javaTask.isCancelled();
+	}
+
 	protected URL workflow() {
 		setState("listing");
 
 		listFiles(directoryToArchive);
-		if (javaTask != null && javaTask.isCancelled())
+		if (isCancelled())
 			return null;
 
 		setState("copying");
 
 		copyToWorkingDirectory();
-		if (javaTask != null && javaTask.isCancelled())
+		if (isCancelled())
+			return null;
+
+		setState("ingesting");
+
+		IngestionResult ingestion = ingestIntoOpenBIS();
+		if (isCancelled())
 			return null;
 
 		setState("meta-ing");
 
-		extractMetadata();
-		if (javaTask != null && javaTask.isCancelled())
+		extractMetadata(ingestion);
+		if (isCancelled())
 			return null;
 
 		setState("bagging-it");
@@ -160,7 +179,7 @@ public class ArchiverTask implements Callable<URL> {
 			log.warn("task[" + myID
 					+ "] failed to write metadata descriptor to " + jsonFile, e);
 		}
-		return tellSeek();
+		return tellSeek(ingestion);
 	}
 
 	/**
@@ -223,6 +242,16 @@ public class ArchiverTask implements Callable<URL> {
 		return dest;
 	}
 
+	private IngestionResult ingestIntoOpenBIS() {
+		try {
+			File base = new File(archiveRoot, directoryToArchive.getName());
+			return ingester.ingest(base, machine, project);
+		} catch (IOException | InterruptedException e) {
+			log.error("problem during openbis-ingestion phase", e);
+		}
+		return null;
+	}
+
 	static URI resolveToURI(URI base, String part) {
 		StringBuilder sb = new StringBuilder(part.length());
 		for (char ch : part.toCharArray()) {
@@ -243,24 +272,35 @@ public class ArchiverTask implements Callable<URL> {
 		return base.resolve(sb.toString());
 	}
 
+	static URI resolveToURI(URL base, String part) throws URISyntaxException {
+		return resolveToURI(base.toURI(), part);
+	}
+
 	/**
 	 * Get the metadata out of a single file.
+	 * 
+	 * @param ingestion
+	 *            The info out of the OpenBIS ingestion process.
 	 */
-	private void extractMetadatum(Entry ent) throws IOException {
+	private void extractMetadatum(Entry ent, IngestionResult ingestion)
+			throws IOException {
 		String cifs = resolveToURI(cifsRoot, ent.getName()).toString();
 		metadata.addFile(ent.getName(), ent.getFile(), ent.getDestination(),
 				cifs);
 	}
 
 	/**
-	 * Get the metadata out of the files (identified by {@link #listFiles(File)}
-	 * ).
+	 * Get the metadata out of the files (identified by {@link #listFiles(File)}).
+	 * 
+	 * @param ingestion
+	 *            The info out of the OpenBIS ingestion process.
 	 */
-	protected void extractMetadata() {
+	protected void extractMetadata(IngestionResult ingestion) {
+		metadata.setOpenBISExperiment(ingestion.experimentID, ingestion.experimentURL);
 		for (Entry ent : entries) {
 			try {
 				log.info("task[" + myID + "] characterising " + ent.getFile());
-				extractMetadatum(ent);
+				extractMetadatum(ent, ingestion);
 			} catch (IOException e) {
 				log.warn("task[" + myID + "] failed to generate metadata for "
 						+ ent.getDestination(), e);
@@ -275,7 +315,7 @@ public class ArchiverTask implements Callable<URL> {
 	// Construct the actual archive of the data. NOT YET DONE
 	protected void bagItUp() {
 		try {
-			// TODO
+			// TODO Need to actually do the build of the bagit
 		} finally {
 
 		}
@@ -284,10 +324,13 @@ public class ArchiverTask implements Callable<URL> {
 	private String describeEntryToSeek(Entry ent) {
 		// TODO Improve this description
 		return format(
-				"File copied from %s of (presumed) type %s and generated by %s; action timestamp %s",
+				"File copied from %s of (presumed) type %s and generated by "
+						+ "%s; action timestamp %s. "
+						+ "File is located at %s on the Data Store.",
 				ent.getFile(), metadata.getFileType(ent.getFile()),
 				info.getMachineName(directoryToArchive),
-				ISO8601.format(new Date(start)));
+				ISO8601.format(new Date(start)),
+				resolveToURI(cifsRoot, ent.getName()));
 	}
 
 	private String titleOfSeekEntry(Entry ent) {
@@ -300,12 +343,21 @@ public class ArchiverTask implements Callable<URL> {
 	 * 
 	 * @return the location on SEEK of the descriptor we uploaded.
 	 */
-	protected URL tellSeek() {
-		for (Entry ent : entries)
-			// TODO Do something useful with the links returned by this method
-			seek.linkFileAsset(metadata.getUser(), metadata.getExperiment(),
-					describeEntryToSeek(ent), titleOfSeekEntry(ent),
-					resolveToURI(cifsRoot, ent.getName()));
+	protected URL tellSeek(IngestionResult ingestion) {
+		try {
+			for (Entry ent : entries) {
+				String title = titleOfSeekEntry(ent);
+				String description = describeEntryToSeek(ent);
+				URI openBisURI = resolveToURI(ingestion.dataRoot, ent.getName());
+				URL seekURL = seek.linkFileAsset(metadata.getUser(),
+						metadata.getExperiment(), description, title,
+						openBisURI);
+				metadata.setSeekLocation(ent, seekURL);
+				linkCount++;
+			}
+		} catch (URISyntaxException e) {
+			log.warn("unexpected failure to construct URI into OpenBIS", e);
+		}
 
 		metadata.get();
 		String instrument = info.getMachineName(directoryToArchive);

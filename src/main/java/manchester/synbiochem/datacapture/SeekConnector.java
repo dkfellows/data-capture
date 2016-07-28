@@ -690,6 +690,10 @@ public class SeekConnector {
 		return form;
 	}
 
+	private static final int POSSIBLE_PUBLICATIONS = 0;// TODO hardcoded?
+	private static final int ASSAY_RELATIONSHIP_TYPE = 0;// TODO hardcoded?
+	private static final int POSSIBLE_DATA_FILE_EVENT_IDS = 0;// TODO hardcoded?
+
 	private MultipartFormData makeFileUploadForm(User user, Assay assay, String name,
 			String description, String title, String type, String content)
 			throws IOException {
@@ -717,11 +721,11 @@ public class SeekConnector {
 		form.addField("adv_project_id");
 		form.addField("adv_institution_id", institution);
 		form.addField("data_file[other_creators]");
-		form.addField("possible_publications", 0);// TODO hardcoded?
+		form.addField("possible_publications", POSSIBLE_PUBLICATIONS);
 		form.addField("possible_assays", assay.id);
 		form.addField("assay_ids[]", assay.id);
-		form.addField("assay_relationship_type", 0);// TODO hardcoded?
-		form.addField("possible_data_file_event_ids", 0);// TODO hardcoded?
+		form.addField("assay_relationship_type", ASSAY_RELATIONSHIP_TYPE);
+		form.addField("possible_data_file_event_ids", POSSIBLE_DATA_FILE_EVENT_IDS);
 		form.addField("data_file[event_ids][]");
 		form.build();
 		return form;
@@ -754,11 +758,11 @@ public class SeekConnector {
 		form.addField("adv_project_id");
 		form.addField("adv_institution_id", institution);
 		form.addField("data_file[other_creators]");
-		form.addField("possible_publications", 0);// TODO hardcoded?
+		form.addField("possible_publications", POSSIBLE_PUBLICATIONS);
 		form.addField("possible_assays", assay.id);
 		form.addField("assay_ids[]", assay.id);
-		form.addField("assay_relationship_type", 0);// TODO hardcoded?
-		form.addField("possible_data_file_event_ids", 0);// TODO hardcoded?
+		form.addField("assay_relationship_type", ASSAY_RELATIONSHIP_TYPE);
+		form.addField("possible_data_file_event_ids", POSSIBLE_DATA_FILE_EVENT_IDS);
 		form.addField("data_file[event_ids][]");
 		form.build();
 		return form;

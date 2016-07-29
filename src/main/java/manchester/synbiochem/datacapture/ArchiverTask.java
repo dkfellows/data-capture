@@ -68,6 +68,21 @@ public class ArchiverTask implements Callable<URL> {
 	Long finish;
 	private DateFormat ISO8601;
 
+	ArchiverTask(File dir) {
+		directoryToArchive = dir;
+		entries = new ArrayList<>();
+		// Init stuff
+		myID = 0;
+		seek = null;
+		metastoreRoot = null;
+		metadata = null;
+		cifsRoot = null;
+		archiveRoot = null;
+	}
+	List<Entry> getEntries() {
+		return entries;
+	}
+
 	public ArchiverTask(MetadataRecorder metadata, File archiveRoot,
 			File metastoreRoot, URI cifsRoot, File directoryToArchive,
 			SeekConnector seek, OpenBISIngester ingester,

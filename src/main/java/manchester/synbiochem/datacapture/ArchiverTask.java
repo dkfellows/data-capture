@@ -102,10 +102,10 @@ public class ArchiverTask implements Callable<URL> {
 	public Double getProgress() {
 		if (done)
 			return 1.0;
-		int files = fileCount, metas = metaCount, copies = copyCount;
+		int files = fileCount, metas = metaCount, copies = copyCount, links = linkCount;
 		if (files == 0)
 			return null;
-		return (metas + copies) / (files * 2.0);
+		return (metas + copies + links) / (files * 3.0);
 	}
 
 	@Override

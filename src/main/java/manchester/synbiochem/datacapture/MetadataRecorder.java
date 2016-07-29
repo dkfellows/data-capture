@@ -10,7 +10,9 @@ import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_CIFS;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_MD5;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_MIME;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_NAME;
+import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_OPENBIS_URL;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_ORIGIN;
+import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_SEEK_URL;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_SHA1;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_SIZE;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_TIME;
@@ -22,6 +24,7 @@ import static org.json.JSONObject.NULL;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -29,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -57,7 +59,7 @@ public class MetadataRecorder {
 	 * thread-safe.
 	 */
 	private final DateFormat ISO8601;
-	private final List<JSONObject> files;
+	private final Map<String,JSONObject> files;
 	private final JSONObject o;
 	private User user;
 	private Assay assay;
@@ -77,27 +79,27 @@ public class MetadataRecorder {
 		o.put(TIME, "");
 		o.put(USER, NULL);
 		o.put(EXPERIMENT, NULL);
-		files = new ArrayList<>();
+		files = new HashMap<>();
 		csvBuffer = new StringBuilder();
 		try {
 			csv = new CSVPrinter(csvBuffer, CSVFormat.TDF);
 		} catch (IOException e) {
 			throw new RuntimeException("unexpected IO failure", e);
 		}
-		// FIXME change column names
+		// TODO change column names
 		addRecord(EXPERIMENT, USER, TIME, FILE_ARCHIVE, FILE_ORIGIN, FILE_SHA1,
-				FILE_MD5, FILE_MIME, FILE_SIZE, FILE_TIME, FILE_CIFS);
+				FILE_MD5, FILE_MIME, FILE_SIZE, FILE_TIME, FILE_CIFS, FILE_OPENBIS_URL);
 	}
 
 	/**
 	 * Force there to be exactly 11 columns in the CSV.
 	 */
-	// FIXME correct number of columns
+	// TODO correct number of columns
 	private void addRecord(Object a1, Object a2, Object a3, Object a4,
 			Object a5, Object a6, Object a7, Object a8, Object a9, Object a10,
-			Object a11) {
+			Object a11, Object a12) {
 		try {
-			csv.printRecord(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+			csv.printRecord(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12);
 		} catch (IOException e) {
 			throw new RuntimeException("unexpected IO failure", e);
 		}
@@ -105,7 +107,7 @@ public class MetadataRecorder {
 
 	protected final void addFile(String sha1, String md5, String name,
 			String mimetype, String source, String archived, Date time,
-			long size, String cifs) {
+			long size, String cifs, String openbis) {
 		filetypeMap.put(source, mimetype);
 		JSONObject f = new JSONObject();
 		f.put(FILE_SHA1, sha1);
@@ -117,9 +119,11 @@ public class MetadataRecorder {
 		f.put(FILE_TIME, ISO8601.format(time));
 		f.put(FILE_SIZE, size);
 		f.put(FILE_CIFS, cifs);
-		files.add(f);
+		f.put(FILE_OPENBIS_URL, openbis);
+		files.put(source,f);
 		addRecord(getExperiment().url, getUser().url, timestamp, archived,
-				source, sha1, md5, mimetype, size, ISO8601.format(time), cifs);
+				source, sha1, md5, mimetype, size, ISO8601.format(time), cifs,
+				openbis);
 	}
 
 	/**
@@ -137,13 +141,15 @@ public class MetadataRecorder {
 	 * @param cifs
 	 *            The direct location for the file on the filestore at the time
 	 *            that this record was created. Not guaranteed to stay relevant.
+	 * @param openbis
+	 *            The location on the OpenBIS DSS for the file. Persistent.
 	 * @return The archive location to copy the file to.
 	 * @throws IOException
 	 *             If anything goes wrong when computing checksums or MIME
 	 *             types.
 	 */
-	public void addFile(String name, File source, File archived, String cifs)
-			throws IOException {
+	public void addFile(String name, File source, File archived, String cifs,
+			URI openbis) throws IOException {
 		Digest sha1 = new Digest(SHA1);
 		Digest md5 = new Digest(MD5);
 		byte[] buffer = new byte[BUFFER_SIZE];
@@ -157,7 +163,7 @@ public class MetadataRecorder {
 		}
 		addFile(sha1.toString(), md5.toString(), name, tika.detect(source),
 				source.getAbsolutePath(), archived.getAbsolutePath(), new Date(
-						source.lastModified()), size, cifs);
+						source.lastModified()), size, cifs, openbis.toString());
 	}
 
 	public void setExperiment(Assay experiment) {
@@ -198,6 +204,7 @@ public class MetadataRecorder {
 	public String getId() {
 		String id = o.getString(ID);
 		if (id.isEmpty()) {
+			ArrayList<JSONObject> files = new ArrayList<>(this.files.values());
 			sort(files, comparator);
 			JSONArray a = new JSONArray();
 			for (JSONObject f : files) {
@@ -264,6 +271,8 @@ public class MetadataRecorder {
 	}
 
 	public void setSeekLocation(Entry ent, URL seekURL) {
-		// TODO How to record this information?
+		JSONObject obj = files.get(ent.getName());
+		if (obj != null)
+			obj.put(FILE_SEEK_URL, seekURL.toString());
 	}
 }

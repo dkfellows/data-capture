@@ -302,10 +302,10 @@ public class ArchiverTask implements Callable<URL> {
 	 *            The info out of the OpenBIS ingestion process.
 	 */
 	private void extractMetadatum(Entry ent, IngestionResult ingestion)
-			throws IOException {
+			throws IOException, URISyntaxException {
 		String cifs = resolveToURI(cifsRoot, ent.getName()).toString();
 		metadata.addFile(ent.getName(), ent.getFile(), ent.getDestination(),
-				cifs);
+				cifs, resolveToURI(ingestion.dataRoot, ent.getName()));
 	}
 
 	/**
@@ -320,7 +320,7 @@ public class ArchiverTask implements Callable<URL> {
 			try {
 				log.info("task[" + myID + "] characterising " + ent.getFile());
 				extractMetadatum(ent, ingestion);
-			} catch (IOException e) {
+			} catch (IOException | URISyntaxException e) {
 				log.warn("task[" + myID + "] failed to generate metadata for "
 						+ ent.getDestination(), e);
 			} finally {

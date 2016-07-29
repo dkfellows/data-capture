@@ -647,6 +647,26 @@ public class SeekConnector {
 		}
 	}
 
+	private void addAuthToForm(MultipartFormData form) throws IOException {
+		form.addField("utf8", "\u2713"); // ✓
+		form.addField("authenticity_token", getAuthToken());
+	}
+
+	private void addCreatorsToForm(MultipartFormData form, User... users) {
+		StringBuilder sb = new StringBuilder("[");
+
+		String sep = "";
+		for (User user : users){
+			sb.append(sep).append("[\"").append(user.name).append("\",")
+					.append(user.id).append("]");
+			sep = ",";
+		}
+		sb.append("]");
+
+		form.addField("creator-typeahead");
+		form.addField("creators", sb);
+	}
+
 	private void addPermissionsToForm(MultipartFormData form) {
 		form.addField("sharing[permissions][contributor_types]", "[]");
 		form.addField("sharing[permissions][values]", "{}");
@@ -662,30 +682,29 @@ public class SeekConnector {
 
 	private static final String JERM_EXPERIMENT = "http://www.mygrid.org.uk/ontology/JERMOntology#Experimental_assay_type";
 	private static final String JERM_TECH = "http://www.mygrid.org.uk/ontology/JERMOntology#Technology_type";
+	private static final int ASSAY_CLASS_ID = 1;// hardcoded?
 
 	private MultipartFormData makeAssayCreateForm(User user, Study study,
 			String title, String description, String assayType) throws IOException {
 		MultipartFormData form = new MultipartFormData("1234567890");
-		form.addField("utf8", "\u2713"); // ✓
-		form.addField("authenticity_token", getAuthToken());
+		addAuthToForm(form);
 		form.addField("assay[create_from_asset]");
 		form.addField("assay[title]", title);
 		form.addField("assay[description]", description);
 		form.addField("assay[study_id]", study.id);
-		form.addField("assay[assay_class_id]", 1); // ?
+		form.addField("assay[assay_class_id]", ASSAY_CLASS_ID);
 		form.addField("assay[assay_type_uri]", assayType);
 		form.addField("assay[technology_type_uri]", JERM_TECH);
 		form.addField("possible_organisms", 0);
 		form.addField("culture_growth", "Not specified");// ?
 		addPermissionsToForm(form);
 		form.addField("tag_list");
-		form.addField("creator-typeahead");
-		form.addField("creators", "[[\"" + user.name + "\"," + user.id + "]]");
+		addCreatorsToForm(form, user);
 		form.addField("adv_project_id");
 		form.addField("adv_institution_id", institution);
 		form.addField("assay[other_creators]");
 		form.addField("possible_sops", 0);
-		form.addField("possible_publications", 0);
+		form.addField("possible_publications", POSSIBLE_PUBLICATIONS);
 		form.build();
 		return form;
 	}
@@ -694,12 +713,11 @@ public class SeekConnector {
 	private static final int ASSAY_RELATIONSHIP_TYPE = 0;// TODO hardcoded?
 	private static final int POSSIBLE_DATA_FILE_EVENT_IDS = 0;// TODO hardcoded?
 
-	private MultipartFormData makeFileUploadForm(User user, Assay assay, String name,
-			String description, String title, String type, String content)
-			throws IOException {
+	private MultipartFormData makeFileUploadForm(User user, Assay assay,
+			String name, String description, String title, String type,
+			String content) throws IOException {
 		MultipartFormData form = new MultipartFormData(content);
-		form.addField("utf8", "\u2713"); // ✓
-		form.addField("authenticity_token", getAuthToken());
+		addAuthToForm(form);
 		form.addField("data_file[parent_name]");
 		form.addField("data_file[is_with_sample]");
 		form.addContent("content_blobs[][data]", name, type, content);
@@ -716,8 +734,7 @@ public class SeekConnector {
 		form.addField("tag_list");
 		form.addField("attribution-typeahead");
 		form.addField("attributions", "[]");
-		form.addField("creator-typeahead");
-		form.addField("creators", "[[\"" + user.name + "\"," + user.id + "]]");
+		addCreatorsToForm(form, user);
 		form.addField("adv_project_id");
 		form.addField("adv_institution_id", institution);
 		form.addField("data_file[other_creators]");
@@ -734,8 +751,7 @@ public class SeekConnector {
 	private MultipartFormData makeFileLinkForm(User user, Assay assay,
 			URI location, String description, String title) throws IOException {
 		MultipartFormData form = new MultipartFormData("12345678901234567890");
-		form.addField("utf8", "\u2713"); // ✓
-		form.addField("authenticity_token", getAuthToken());
+		addAuthToForm(form);
 		form.addField("data_file[parent_name]");
 		form.addField("data_file[is_with_sample]");
 		form.addContent("content_blobs[][data]", "", "application/octet-stream", "");
@@ -753,8 +769,7 @@ public class SeekConnector {
 		form.addField("tag_list");
 		form.addField("attribution-typeahead");
 		form.addField("attributions", "[]");
-		form.addField("creator-typeahead");
-		form.addField("creators", "[[\"" + user.name + "\"," + user.id + "]]");
+		addCreatorsToForm(form, user);
 		form.addField("adv_project_id");
 		form.addField("adv_institution_id", institution);
 		form.addField("data_file[other_creators]");

@@ -78,6 +78,10 @@ public class ArchiverTask implements Callable<URL> {
 		metadata = null;
 		cifsRoot = null;
 		archiveRoot = null;
+		project = null;
+		machine = null;
+		ingester = null;
+		info = null;
 	}
 	List<Entry> getEntries() {
 		return entries;

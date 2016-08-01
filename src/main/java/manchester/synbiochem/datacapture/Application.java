@@ -8,8 +8,8 @@ import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import java.net.URL;
 import java.text.DateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -165,7 +165,7 @@ public class Application implements Interface {
 		Study study = seek.getStudy(s0.url);
 		String machine = info.getMachineName(dirs.get(0));
 		String project = info.getProjectName(machine, study);
-		String now = DateFormat.getInstance().format(Calendar.getInstance());
+		String now = DateFormat.getInstance().format(new Date());
 		// Not the greatest way of creating a title, but not too problematic either.
 		String title = dirs.get(0).replaceFirst("/+$", "")
 				.replaceFirst(".*/", "").replace("_", " ");

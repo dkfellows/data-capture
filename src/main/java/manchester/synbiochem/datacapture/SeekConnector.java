@@ -56,6 +56,7 @@ import org.xml.sax.SAXParseException;
 import org.xml.sax.helpers.DefaultHandler;
 
 public class SeekConnector {
+	private static final String DEFAULT_PROJECT_URL = "http://synbiochem.fairdomhub.org/projects/5";
 	static final Charset UTF8 = Charset.forName("UTF-8");
 	private Log log = LogFactory.getLog(SeekConnector.class);
 	private static final String SEEK = "http://www.sysmo-db.org/2010/xml/rest";
@@ -247,17 +248,12 @@ public class SeekConnector {
 	private long usersTimestamp;
 
 	public User getUser(URL userURL) {
-		URI userURI;
-		try {
-			userURI = userURL.toURI();
-		} catch (URISyntaxException e) {
-			throw new WebApplicationException(e, BAD_REQUEST);
-		}
+		URI userURI = asURI(userURL);
 		for (User user : getUsers())
 			try {
-				if (user.url.toURI().equals(userURI))
+				if (asURI(user.url).equals(userURI))
 					return user;
-			} catch (URISyntaxException e) {
+			} catch (WebApplicationException e) {
 				log.warn("bad URI returned from SEEK; skipping to next", e);
 			}
 		throw new WebApplicationException("no such user", BAD_REQUEST);
@@ -266,6 +262,7 @@ public class SeekConnector {
 	public List<User> getUsers() {
 		long now = System.currentTimeMillis();
 		if (usersTimestamp + USERS_CACHE_LIFETIME_MS < now) {
+			log.info("filling users cache");
 			try {
 				users = getUserList();
 			} catch (SAXException | IOException | ParserConfigurationException e) {
@@ -310,35 +307,42 @@ public class SeekConnector {
 		return users;
 	}
 
-	public Assay getAssay(URL assayURL) {
-		URI assayURI;
+	private URI asURI(URL url) {
 		try {
-			assayURI = assayURL.toURI();
+			String s = url.toURI().toString();
+			switch (seek.getProtocol()) {
+			case "http":
+				s = s.replaceFirst("(?i)^https:", "http:");
+				break;
+			case "https":
+				s = s.replaceFirst("(?i)^http:", "https:");
+				break;
+			}
+			return new URI(s);
 		} catch (URISyntaxException e) {
 			throw new WebApplicationException(e, BAD_REQUEST);
 		}
+	}
+
+	public Assay getAssay(URL assayURL) {
+		URI assayURI = asURI(assayURL);
 		for (Assay assay : getAssays())
 			try {
-				if (assay.url.toURI().equals(assayURI))
+				if (asURI(assay.url).equals(assayURI))
 					return assay;
-			} catch (URISyntaxException e) {
+			} catch (WebApplicationException e) {
 				log.warn("bad URI returned from SEEK; skipping to next", e);
 			}
 		throw new WebApplicationException("no such assay", BAD_REQUEST);
 	}
 
 	public Study getStudy(URL studyURL) {
-		URI studyURI;
-		try {
-			studyURI = studyURL.toURI();
-		} catch (URISyntaxException e) {
-			throw new WebApplicationException(e, BAD_REQUEST);
-		}
+		URI studyURI = asURI(studyURL);
 		for (Study assay : getStudies())
 			try {
-				if (assay.url.toURI().equals(studyURI))
+				if (asURI(assay.url).equals(studyURI))
 					return assay;
-			} catch (URISyntaxException e) {
+			} catch (WebApplicationException e) {
 				log.warn("bad URI returned from SEEK; skipping to next", e);
 			}
 		throw new WebApplicationException("no such study", BAD_REQUEST);
@@ -359,8 +363,9 @@ public class SeekConnector {
 	private void addExtra(Assay a) {
 		Element doc ;
 		try {
+			log.info("populating extra structure for " + a.url);
 			String u = a.url.toString().replaceAll("^.*//[^/]*/", "");
-			doc = get(u+".xml").getDocumentElement();
+			doc = get(u + ".xml").getDocumentElement();
 		} catch (Exception e) {
 			log.warn("problem retrieving information from assay " + a.url, e);
 			return;
@@ -397,7 +402,7 @@ public class SeekConnector {
 		if (a.projectName == null) {
 			a.projectName = "SynBioChem";
 			try {
-				a.projectUrl = new URL("http://synbiochem.fairdomhub.org/projects/5");
+				a.projectUrl = new URL(DEFAULT_PROJECT_URL);
 			} catch (MalformedURLException e) {
 				// Should be unreachable
 			}
@@ -407,8 +412,9 @@ public class SeekConnector {
 	private void addExtra(Study s) {
 		Element doc ;
 		try {
+			log.info("populating extra structure for " + s.url);
 			String u = s.url.toString().replaceAll("^.*//[^/]*/", "");
-			doc = get(u+".xml").getDocumentElement();
+			doc = get(u + ".xml").getDocumentElement();
 		} catch (Exception e) {
 			log.warn("problem retrieving information from assay " + s.url, e);
 			return;
@@ -437,14 +443,14 @@ public class SeekConnector {
 		if (s.projectName == null) {
 			s.projectName = "SynBioChem";
 			try {
-				s.projectUrl = new URL("http://synbiochem.fairdomhub.org/projects/5");
+				s.projectUrl = new URL(DEFAULT_PROJECT_URL);
 			} catch (MalformedURLException e) {
 				// Should be unreachable
 			}
 		}
 	}
 
-	private static int CACHE_TIME = 60 * 1000; // 60 seconds
+	private static int CACHE_TIME = 150 * 1000; // 2.5 minutes
 	private Long assayCacheTimestamp;
 	private List<Assay> cachedAssays = Collections.emptyList();
 
@@ -453,6 +459,7 @@ public class SeekConnector {
 		if (assayCacheTimestamp != null && assayCacheTimestamp + CACHE_TIME > now) {
 			return cachedAssays;
 		}
+		log.info("filling assays cache");
 		List<Assay> assays = new ArrayList<>();
 		try {
 			Document d = get("/assays.xml?page=all");
@@ -483,6 +490,7 @@ public class SeekConnector {
 		if (studyCacheTimestamp != null && studyCacheTimestamp + CACHE_TIME > now) {
 			return cachedStudies;
 		}
+		log.info("filling studies cache");
 		List<Study> studies = new ArrayList<>();
 		try {
 			Document d = get("/studies.xml?page=all");
@@ -521,6 +529,7 @@ public class SeekConnector {
 	private void firstFetch() {
 		// write this information into the log, deliberately
 		log.info("there are " + getUsers().size() + " users");
+		log.info("there are " + getStudies().size() + " studies");
 		log.info("there are " + getAssays().size() + " assays");
 		log.info("institution is set to " + getInstitutionName());
 	}
@@ -572,12 +581,20 @@ public class SeekConnector {
 		try {
 			MultipartFormData form = makeAssayCreateForm(user, study, title,
 					description, JERM_EXPERIMENT);
+			log.info("creating experimental assay with title " + title);
 			HttpURLConnection c = connect("/assays");
 			try {
 				switch (postForm(c, form)) {
 				case CREATED:
 				case FOUND:
-					return new URL(seek, c.getHeaderField("Location"));
+					/*
+					 * Invalidate the assay cache; we know there's something new
+					 * not in it.
+					 */
+					assayCacheTimestamp = null;
+					URL url = new URL(seek, c.getHeaderField("Location"));
+					log.info("assay created with location " + url);
+					return url;
 				default:
 					readErrorFromConnection(c, "problem in form post",
 							"write to SEEK failed with code %d: %s");
@@ -599,12 +616,16 @@ public class SeekConnector {
 		try {
 			MultipartFormData form = makeFileUploadForm(user, assay, name,
 					description, title, type, content);
+			log.info("creating uploaded asset with title '" + title
+					+ "' and filename " + name);
 			HttpURLConnection c = connect("/data_files");
 			try {
 				switch (postForm(c, form)) {
 				case CREATED:
 				case FOUND:
-					return new URL(seek, c.getHeaderField("Location"));
+					URL url = new URL(seek, c.getHeaderField("Location"));
+					log.info("uploaded asset at " + url);
+					return url;
 				default:
 					readErrorFromConnection(c, "problem in file upload",
 							"upload failed with code %d: %s");

@@ -293,6 +293,29 @@ function updateAssays() {
 	});
 }
 
+function createIngestTask(user, assay, study, dir) {
+	var request = {
+		submitter : {
+			url : user
+		},
+		directory : [ {
+			name : dir
+		} ]
+	};
+	if (assay !== undefined)
+		request.assay = {
+			url : assay
+		};
+	if (study !== undefined)
+		request.study = {
+			url : study
+		};
+	console.log("Making ingestion request:", request);
+	postJSON($("#apiTasks")[0].href, request, function(data) {
+		addTaskRow($("#tasks"), data);
+	});
+}
+
 /** What is the currently-selected study? */
 var theCurrentStudy = undefined;
 /** What is the currently-selected assay? */
@@ -316,26 +339,8 @@ $(function() {
 			alert("Please select something in all three fields");
 			return false;
 		}
-		var request = {
-			submitter : {
-				url : theUser
-			},
-			directory : [ {
-				name : theDir
-			} ]
-		};
-		if (theAssay !== undefined)
-			request.assay = {
-				url : theAssay
-			};
-		if (theStudy !== undefined)
-			request.study = {
-				url : theStudy
-			};
 		dialog.dialog("close");
-		postJSON($("#apiTasks")[0].href, request, function(data) {
-			addTaskRow($("#tasks"), data);
-		});
+		createIngestTask(theUser, theAssay, theStudy, theDir);
 		return true;
 	}
 	function updateEnabled() {
@@ -343,7 +348,7 @@ $(function() {
 		var theStudy = theCurrentStudy;
 		var theAssay = theCurrentAssay;
 		var theDir = theCurrentDir;
-		console.log("u:", theUser, "a:", theAssay, "d:", theDir);
+		console.log("u:", theUser, "x:", theAssay||theStudy, "d:", theDir);
 		var disabled = (theUser === undefined || (theStudy === undefined && theAssay === undefined) || theDir === undefined);
 		$("#newOK").button("option", "disabled", disabled);
 	}

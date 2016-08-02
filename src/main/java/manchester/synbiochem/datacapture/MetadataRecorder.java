@@ -27,7 +27,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
@@ -59,6 +61,7 @@ public class MetadataRecorder {
 	private Assay assay;
 	private StringBuilder csvBuffer;
 	private CSVPrinter csv;
+	private final Map<String, String> filetypeMap = new HashMap<>();
 
 	public MetadataRecorder(Tika tika) {
 		ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
@@ -98,6 +101,7 @@ public class MetadataRecorder {
 	protected final void addFile(String sha1, String md5, String name,
 			String mimetype, String source, String archived, Date time,
 			long size, String cifs) {
+		filetypeMap.put(source, mimetype);
 		JSONObject f = new JSONObject();
 		f.put(FILE_SHA1, sha1);
 		f.put(FILE_MD5, md5);
@@ -173,6 +177,10 @@ public class MetadataRecorder {
 
 	public User getUser() {
 		return user;
+	}
+
+	public String getFileType(File originFile) {
+		return filetypeMap.get(originFile.getAbsolutePath());
 	}
 
 	/**

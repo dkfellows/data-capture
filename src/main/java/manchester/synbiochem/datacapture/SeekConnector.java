@@ -609,8 +609,31 @@ public class SeekConnector {
 		}
 	}
 
-	// TODO linkFileAsset(User user, Assay assay, String name,
-	// String title, String type, URL content)
+	public URL linkFileAsset(User user, Assay assay, String description,
+			String title, URI location) {
+		try {
+			MultipartFormData form = makeFileLinkForm(user, assay, location,
+					description, title);
+			HttpURLConnection c = connect("/data_files");
+			try {
+				switch (postForm(c, form)) {
+				case CREATED:
+				case FOUND:
+					return new URL(seek, c.getHeaderField("Location"));
+				default:
+					readErrorFromConnection(c, "problem in file link",
+							"link failed with code %d: %s");
+				case OK:
+					return null;
+				}
+			} finally {
+				c.disconnect();
+			}
+		} catch (IOException e) {
+			throw new WebApplicationException("HTTP error", e);
+		}
+	}
+
 	public URL uploadFileAsset(User user, Assay assay, String name,
 			String description, String title, String type, String content) {
 		try {
@@ -640,6 +663,26 @@ public class SeekConnector {
 		}
 	}
 
+	private void addAuthToForm(MultipartFormData form) throws IOException {
+		form.addField("utf8", "\u2713"); // ✓
+		form.addField("authenticity_token", getAuthToken());
+	}
+
+	private void addCreatorsToForm(MultipartFormData form, User... users) {
+		StringBuilder sb = new StringBuilder("[");
+
+		String sep = "";
+		for (User user : users){
+			sb.append(sep).append("[\"").append(user.name).append("\",")
+					.append(user.id).append("]");
+			sep = ",";
+		}
+		sb.append("]");
+
+		form.addField("creator-typeahead");
+		form.addField("creators", sb);
+	}
+
 	private void addPermissionsToForm(MultipartFormData form) {
 		form.addField("sharing[permissions][contributor_types]", "[]");
 		form.addField("sharing[permissions][values]", "{}");
@@ -655,40 +698,42 @@ public class SeekConnector {
 
 	private static final String JERM_EXPERIMENT = "http://www.mygrid.org.uk/ontology/JERMOntology#Experimental_assay_type";
 	private static final String JERM_TECH = "http://www.mygrid.org.uk/ontology/JERMOntology#Technology_type";
+	private static final int ASSAY_CLASS_ID = 1;// hardcoded?
 
 	private MultipartFormData makeAssayCreateForm(User user, Study study,
 			String title, String description, String assayType) throws IOException {
 		MultipartFormData form = new MultipartFormData("1234567890");
-		form.addField("utf8", "\u2713"); // ✓
-		form.addField("authenticity_token", getAuthToken());
+		addAuthToForm(form);
 		form.addField("assay[create_from_asset]");
 		form.addField("assay[title]", title);
 		form.addField("assay[description]", description);
 		form.addField("assay[study_id]", study.id);
-		form.addField("assay[assay_class_id]", 1); // ?
+		form.addField("assay[assay_class_id]", ASSAY_CLASS_ID);
 		form.addField("assay[assay_type_uri]", assayType);
 		form.addField("assay[technology_type_uri]", JERM_TECH);
 		form.addField("possible_organisms", 0);
 		form.addField("culture_growth", "Not specified");// ?
 		addPermissionsToForm(form);
 		form.addField("tag_list");
-		form.addField("creator-typeahead");
-		form.addField("creators", "[[\"" + user.name + "\"," + user.id + "]]");
+		addCreatorsToForm(form, user);
 		form.addField("adv_project_id");
 		form.addField("adv_institution_id", institution);
 		form.addField("assay[other_creators]");
 		form.addField("possible_sops", 0);
-		form.addField("possible_publications", 0);
+		form.addField("possible_publications", POSSIBLE_PUBLICATIONS);
 		form.build();
 		return form;
 	}
 
-	private MultipartFormData makeFileUploadForm(User user, Assay assay, String name,
-			String description, String title, String type, String content)
-			throws IOException {
+	private static final int POSSIBLE_PUBLICATIONS = 0;// TODO hardcoded?
+	private static final int ASSAY_RELATIONSHIP_TYPE = 0;// TODO hardcoded?
+	private static final int POSSIBLE_DATA_FILE_EVENT_IDS = 0;// TODO hardcoded?
+
+	private MultipartFormData makeFileUploadForm(User user, Assay assay,
+			String name, String description, String title, String type,
+			String content) throws IOException {
 		MultipartFormData form = new MultipartFormData(content);
-		form.addField("utf8", "\u2713"); // ✓
-		form.addField("authenticity_token", getAuthToken());
+		addAuthToForm(form);
 		form.addField("data_file[parent_name]");
 		form.addField("data_file[is_with_sample]");
 		form.addContent("content_blobs[][data]", name, type, content);
@@ -705,16 +750,50 @@ public class SeekConnector {
 		form.addField("tag_list");
 		form.addField("attribution-typeahead");
 		form.addField("attributions", "[]");
-		form.addField("creator-typeahead");
-		form.addField("creators", "[[\"" + user.name + "\"," + user.id + "]]");
+		addCreatorsToForm(form, user);
 		form.addField("adv_project_id");
 		form.addField("adv_institution_id", institution);
 		form.addField("data_file[other_creators]");
-		form.addField("possible_publications", 0);// TODO hardcoded?
+		form.addField("possible_publications", POSSIBLE_PUBLICATIONS);
 		form.addField("possible_assays", assay.id);
 		form.addField("assay_ids[]", assay.id);
-		form.addField("assay_relationship_type", 0);// TODO hardcoded?
-		form.addField("possible_data_file_event_ids", 0);// TODO hardcoded?
+		form.addField("assay_relationship_type", ASSAY_RELATIONSHIP_TYPE);
+		form.addField("possible_data_file_event_ids", POSSIBLE_DATA_FILE_EVENT_IDS);
+		form.addField("data_file[event_ids][]");
+		form.build();
+		return form;
+	}
+
+	private MultipartFormData makeFileLinkForm(User user, Assay assay,
+			URI location, String description, String title) throws IOException {
+		MultipartFormData form = new MultipartFormData("12345678901234567890");
+		addAuthToForm(form);
+		form.addField("data_file[parent_name]");
+		form.addField("data_file[is_with_sample]");
+		form.addContent("content_blobs[][data]", "", "application/octet-stream", "");
+		form.addField("content_blobs[][data_url]", location);
+		String name = location.getPath().replaceFirst(".*/", "");
+		form.addField("content_blobs[][original_filename]", name);
+		form.addField("url_checked", true);
+		form.addField("data_file[title]", title);
+		form.addField("data_file[description]", description);
+		form.addField("possible_data_file_project_ids", projectID);
+		form.addField("data_file[project_ids][]");
+		form.addField("data_file[project_ids][]", projectID);
+		form.addField("data_file[license]", license);
+		addPermissionsToForm(form);
+		form.addField("tag_list");
+		form.addField("attribution-typeahead");
+		form.addField("attributions", "[]");
+		addCreatorsToForm(form, user);
+		form.addField("adv_project_id");
+		form.addField("adv_institution_id", institution);
+		form.addField("data_file[other_creators]");
+		form.addField("possible_publications", POSSIBLE_PUBLICATIONS);
+		form.addField("possible_assays", assay.id);
+		form.addField("assay_ids[]", assay.id);
+		form.addField("assay_relationship_type", ASSAY_RELATIONSHIP_TYPE);
+		form.addField("possible_data_file_event_ids", POSSIBLE_DATA_FILE_EVENT_IDS);
 		form.addField("data_file[event_ids][]");
 		form.build();
 		return form;

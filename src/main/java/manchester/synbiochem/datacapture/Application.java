@@ -177,6 +177,7 @@ public class Application implements Interface {
 		String description = String.format(DESCRIPTION_TEMPLATE, title,
 				machine, project, now);
 		URL url = seek.createExperimentalAssay(user, study, description, title);
+		log.info("created assay at " + url);
 		Assay assay = seek.getAssay(url);
 		return tasks.newTask(user, assay, dirs);
 	}

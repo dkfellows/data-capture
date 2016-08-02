@@ -1,5 +1,6 @@
 package manchester.synbiochem.datacapture;
 
+import static java.lang.String.format;
 import static java.net.Proxy.Type.HTTP;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.sort;
@@ -55,8 +56,12 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 import org.xml.sax.helpers.DefaultHandler;
 
+/**
+ * Class and bean responsible for managing the connections to SEEK.
+ * 
+ * @author Donal Fellows
+ */
 public class SeekConnector {
-	private static final String DEFAULT_PROJECT_URL = "http://synbiochem.fairdomhub.org/projects/5";
 	static final Charset UTF8 = Charset.forName("UTF-8");
 	private Log log = LogFactory.getLog(SeekConnector.class);
 	private static final String SEEK = "http://www.sysmo-db.org/2010/xml/rest";
@@ -338,10 +343,10 @@ public class SeekConnector {
 
 	public Study getStudy(URL studyURL) {
 		URI studyURI = asURI(studyURL);
-		for (Study assay : getStudies())
+		for (Study study : getStudies())
 			try {
-				if (asURI(assay.url).equals(studyURI))
-					return assay;
+				if (asURI(study.url).equals(studyURI))
+					return study;
 			} catch (WebApplicationException e) {
 				log.warn("bad URI returned from SEEK; skipping to next", e);
 			}
@@ -360,8 +365,10 @@ public class SeekConnector {
 		return children;
 	}
 
+	private static final String DEFAULT_PROJECT = "http://synbiochem.fairdomhub.org/projects/5";
+
 	private void addExtra(Assay a) {
-		Element doc ;
+		Element doc;
 		try {
 			log.info("populating extra structure for " + a.url);
 			String u = a.url.toString().replaceAll("^.*//[^/]*/", "");
@@ -402,7 +409,7 @@ public class SeekConnector {
 		if (a.projectName == null) {
 			a.projectName = "SynBioChem";
 			try {
-				a.projectUrl = new URL(DEFAULT_PROJECT_URL);
+				a.projectUrl = new URL(DEFAULT_PROJECT);
 			} catch (MalformedURLException e) {
 				// Should be unreachable
 			}
@@ -410,7 +417,7 @@ public class SeekConnector {
 	}
 
 	private void addExtra(Study s) {
-		Element doc ;
+		Element doc;
 		try {
 			log.info("populating extra structure for " + s.url);
 			String u = s.url.toString().replaceAll("^.*//[^/]*/", "");
@@ -443,7 +450,7 @@ public class SeekConnector {
 		if (s.projectName == null) {
 			s.projectName = "SynBioChem";
 			try {
-				s.projectUrl = new URL(DEFAULT_PROJECT_URL);
+				s.projectUrl = new URL(DEFAULT_PROJECT);
 			} catch (MalformedURLException e) {
 				// Should be unreachable
 			}
@@ -563,16 +570,18 @@ public class SeekConnector {
 		return fromStatusCode(c.getResponseCode());
 	}
 
-	private void readErrorFromConnection(HttpURLConnection c, String message,
-			String logPrefix) throws IOException {
+	private void readErrorFromConnection(HttpURLConnection c, String logPrefix,
+			String message) throws IOException {
+		int rc = c.getResponseCode();
+		String msg = c.getResponseMessage();
+		log.error(logPrefix + ": " + rc + " " + msg);
 		InputStream errors = c.getErrorStream();
 		if (errors != null) {
 			for (String line : readLines(errors))
 				log.error(logPrefix + ": " + line);
 			errors.close();
 		}
-		throw new WebApplicationException(String.format(message,
-				c.getResponseCode(), c.getResponseMessage()),
+		throw new WebApplicationException(format(message, rc, msg),
 				INTERNAL_SERVER_ERROR);
 	}
 
@@ -614,12 +623,16 @@ public class SeekConnector {
 		try {
 			MultipartFormData form = makeFileLinkForm(user, assay, location,
 					description, title);
+			log.info("creating linked asset with title '" + title
+					+ "' from originating location " + location);
 			HttpURLConnection c = connect("/data_files");
 			try {
 				switch (postForm(c, form)) {
 				case CREATED:
 				case FOUND:
-					return new URL(seek, c.getHeaderField("Location"));
+					URL url = new URL(seek, c.getHeaderField("Location"));
+					log.info("linked asset at " + url);
+					return url;
 				default:
 					readErrorFromConnection(c, "problem in file link",
 							"link failed with code %d: %s");

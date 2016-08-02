@@ -247,17 +247,12 @@ public class SeekConnector {
 	private long usersTimestamp;
 
 	public User getUser(URL userURL) {
-		URI userURI;
-		try {
-			userURI = userURL.toURI();
-		} catch (URISyntaxException e) {
-			throw new WebApplicationException(e, BAD_REQUEST);
-		}
+		URI userURI = asURI(userURL);
 		for (User user : getUsers())
 			try {
-				if (user.url.toURI().equals(userURI))
+				if (asURI(user.url).equals(userURI))
 					return user;
-			} catch (URISyntaxException e) {
+			} catch (WebApplicationException e) {
 				log.warn("bad URI returned from SEEK; skipping to next", e);
 			}
 		throw new WebApplicationException("no such user", BAD_REQUEST);
@@ -369,6 +364,7 @@ public class SeekConnector {
 	private void addExtra(Assay a) {
 		Element doc;
 		try {
+			log.info("populating extra structure for " + a.url);
 			String u = a.url.toString().replaceAll("^.*//[^/]*/", "");
 			doc = get(u + ".xml").getDocumentElement();
 		} catch (Exception e) {
@@ -417,6 +413,7 @@ public class SeekConnector {
 	private void addExtra(Study s) {
 		Element doc;
 		try {
+			log.info("populating extra structure for " + s.url);
 			String u = s.url.toString().replaceAll("^.*//[^/]*/", "");
 			doc = get(u + ".xml").getDocumentElement();
 		} catch (Exception e) {
@@ -463,8 +460,8 @@ public class SeekConnector {
 		if (assayCacheTimestamp != null && assayCacheTimestamp + CACHE_TIME > now) {
 			return cachedAssays;
 		}
+		log.info("filling assays cache");
 		List<Assay> assays = new ArrayList<>();
-		log.info("filling assay cache");
 		try {
 			Document d = get("/assays.xml?page=all");
 			Element items = (Element) d.getDocumentElement()
@@ -494,8 +491,8 @@ public class SeekConnector {
 		if (studyCacheTimestamp != null && studyCacheTimestamp + CACHE_TIME > now) {
 			return cachedStudies;
 		}
+		log.info("filling studies cache");
 		List<Study> studies = new ArrayList<>();
-		log.info("filling study cache");
 		try {
 			Document d = get("/studies.xml?page=all");
 			Element items = (Element) d.getDocumentElement()

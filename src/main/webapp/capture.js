@@ -348,7 +348,7 @@ $(function() {
 		var theStudy = theCurrentStudy;
 		var theAssay = theCurrentAssay;
 		var theDir = theCurrentDir;
-		console.log("u:", theUser, "a:", theAssay||theStudy, "d:", theDir);
+		console.log("u:", theUser, "x:", theAssay||theStudy, "d:", theDir);
 		var disabled = (theUser === undefined || (theStudy === undefined && theAssay === undefined) || theDir === undefined);
 		$("#newOK").button("option", "disabled", disabled);
 	}

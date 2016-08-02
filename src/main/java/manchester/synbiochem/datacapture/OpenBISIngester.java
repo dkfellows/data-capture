@@ -3,22 +3,29 @@ package manchester.synbiochem.datacapture;
 import static java.lang.String.format;
 import static java.lang.Thread.sleep;
 import static java.nio.charset.Charset.defaultCharset;
-import static java.nio.file.Files.copy;
 import static java.nio.file.Files.readAllLines;
-import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 
+/**
+ * Class and bean that handles ingesting a directory into OpenBIS. Correct
+ * ingestion requires knowing what instrument the data came from and what
+ * project this is done as part of; these are used to select the OpenBIS dropbox
+ * to use.
+ * 
+ * @author Donal Fellows
+ */
 public class OpenBISIngester {
 	public static final String MARKER_PREFIX = ".MARKER_is_finished_";
 	public static final String OUT_PREFIX = ".MARKER_is_ingested_";
@@ -67,50 +74,84 @@ public class OpenBISIngester {
 			return null;
 		}
 		log.info("dropbox located at " + dropbox);
-		Path target = copy(source.toPath(), dropbox.toPath(), COPY_ATTRIBUTES);
-		File marker = new File(dropbox, MARKER_PREFIX + source.getName());
-		marker.createNewFile();
+		File target = copyToOpenBIS(source, dropbox);
 		File outMarker = new File(dropbox, OUT_PREFIX + source.getName());
-		// TODO Bound the ingestion time
-		while (target.toFile().exists() && !outMarker.exists())
-			sleep(1000);
 		try {
-			String dsid = null;
-			String exid = null;
-			for (String line : readAllLines(outMarker.toPath(),
-					defaultCharset())) {
-				line = line.trim();
-				if (line.isEmpty() || line.startsWith("#"))
-					continue;
-				if (dsid == null) {
-					dsid = line;
-				} else if (exid == null) {
-					exid = line;
-				}
-				if (dsid != null && exid != null) {
-					IngestionResult result = new IngestionResult();
-					result.dataID = dsid;
-					result.experimentID = exid;
-					log.info("ingest complete: DataID:" + dsid + " ExpID:"
-							+ exid);
-					result.dataRoot = new URL(format(datasetRootPattern, dsid,
-							source.getName()));
-					result.experimentURL = new URL(format(experimentPattern,
-							exid));
-					return result;
-				}
-			}
-			log.info("ingestion failed; please check openBIS logs for reason");
-			return null;
+			int ticks = waitForIngestion(target, outMarker);
+			return parseIngestionResult(source, outMarker, ticks);
 		} finally {
 			outMarker.delete();
 		}
+	}
+
+	private File copyToOpenBIS(File source, File dropbox) throws IOException {
+		File target = new File(dropbox, source.getName());
+
+		log.info("will create directory " + target);
+
+		FileUtils.copyDirectory(source, target);
+		File marker = new File(dropbox, MARKER_PREFIX + source.getName());
+
+		log.info("creating marker file " + marker);
+
+		marker.createNewFile();
+		return target;
+	}
+
+	private int waitForIngestion(File target, File outMarker)
+			throws InterruptedException {
+		log.info("waiting for completion marker " + outMarker);
+
+		// TODO Bound the ingestion time
+		int ticks = 0;
+		while (target.exists() && !outMarker.exists()) {
+			sleep(1000);
+			ticks++;
+		}
+		return ticks;
+	}
+
+	private IngestionResult parseIngestionResult(File source, File outMarker,
+			int ticks) throws IOException, MalformedURLException {
+		String dsid = null;
+		String exid = null;
+		for (String line : readAllLines(outMarker.toPath(),
+				defaultCharset())) {
+			line = line.trim();
+			if (line.isEmpty() || line.startsWith("#"))
+				continue;
+			if (dsid == null) {
+				dsid = line;
+			} else if (exid == null) {
+				exid = line;
+			}
+			if (dsid != null && exid != null) {
+				IngestionResult result = new IngestionResult();
+				result.dataID = dsid;
+				result.experimentID = exid;
+
+				log.info("ingest complete in " + ticks
+						+ " ticks: returned info DataID:" + dsid
+						+ " ExpID:" + exid);
+
+				result.dataRoot = new URL(format(datasetRootPattern, dsid,
+						source.getName()));
+				result.experimentURL = new URL(format(experimentPattern,
+						exid));
+				return result;
+			}
+		}
+
+		log.info("ingestion failed despite waiting " + ticks
+				+ "ticks; please check openBIS logs for reason");
+		return null;
 	}
 
 	protected File getDropbox(String instrument, String project) {
 		log.info("looking for " + instrument + " in " + dropboxDirectoryMap.keySet());
 		Map<String, File> map = dropboxDirectoryMap.get(instrument
 				.toLowerCase());
+
 		if (map != null)
 			log.info("looking for " + project + " in " + map.keySet());
 		return map == null ? null : map.get(project.toLowerCase());

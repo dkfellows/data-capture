@@ -1,5 +1,6 @@
 package manchester.synbiochem.datacapture;
 
+import static java.lang.String.format;
 import static java.net.Proxy.Type.HTTP;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.sort;
@@ -55,6 +56,11 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 import org.xml.sax.helpers.DefaultHandler;
 
+/**
+ * Class and bean responsible for managing the connections to SEEK.
+ * 
+ * @author Donal Fellows
+ */
 public class SeekConnector {
 	static final Charset UTF8 = Charset.forName("UTF-8");
 	private Log log = LogFactory.getLog(SeekConnector.class);
@@ -564,16 +570,18 @@ public class SeekConnector {
 		return fromStatusCode(c.getResponseCode());
 	}
 
-	private void readErrorFromConnection(HttpURLConnection c, String message,
-			String logPrefix) throws IOException {
+	private void readErrorFromConnection(HttpURLConnection c, String logPrefix,
+			String message) throws IOException {
+		int rc = c.getResponseCode();
+		String msg = c.getResponseMessage();
+		log.error(logPrefix + ": " + rc + " " + msg);
 		InputStream errors = c.getErrorStream();
 		if (errors != null) {
 			for (String line : readLines(errors))
 				log.error(logPrefix + ": " + line);
 			errors.close();
 		}
-		throw new WebApplicationException(String.format(message,
-				c.getResponseCode(), c.getResponseMessage()),
+		throw new WebApplicationException(format(message, rc, msg),
 				INTERNAL_SERVER_ERROR);
 	}
 

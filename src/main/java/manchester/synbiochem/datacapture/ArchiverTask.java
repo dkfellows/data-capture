@@ -359,8 +359,12 @@ public class ArchiverTask implements Callable<URL> {
 
 	private String titleOfSeekEntry(Entry ent) {
 		String tail = ent.getName().replaceFirst(".*/", "");
+		log.info("chopped " + ent.getName() + " to " + tail);
 		return "Experimental Results: " + tail;
 	}
+
+	// Turn off links; combination of brokenness in SEEK and OpenBIS
+	private static boolean USE_SEEK_LINKS = false;
 
 	/**
 	 * Send the metadata to SEEK.
@@ -370,20 +374,16 @@ public class ArchiverTask implements Callable<URL> {
 	protected URL tellSeek(IngestionResult ingestion) {
 		try {
 			for (Entry ent : entries) {
-				if (ingestion != null) {
-					String title = titleOfSeekEntry(ent);
-					String description = describeEntryToSeek(ent);
-					URI openBisURI = resolveToURI(ingestion.dataRoot,
-							ent.getName());
-					URL seekURL = seek.linkFileAsset(metadata.getUser(),
-							metadata.getExperiment(), description, title,
-							openBisURI);
-					metadata.setSeekLocation(ent, seekURL);
-				}
+				if (USE_SEEK_LINKS && ingestion != null)
+					putLinkToFileInSeek(ent, ingestion);
 				linkCount++;
 			}
 		} catch (URISyntaxException e) {
 			log.warn("unexpected failure to construct URI into OpenBIS", e);
+		} catch (RuntimeException e) {
+			log.warn("failed to notify SEEK about file; skipping remaining links");
+		} finally {
+			linkCount = metaCount;
 		}
 
 		metadata.get();
@@ -395,6 +395,16 @@ public class ArchiverTask implements Callable<URL> {
 						+ instrument + " to storage at timestamp " + time,
 				"Experimental Results Metadata", "text/tab-separated-values",
 				metadata.getCSV());
+	}
+
+	private void putLinkToFileInSeek(Entry ent, IngestionResult ingestion)
+			throws URISyntaxException {
+		String title = titleOfSeekEntry(ent);
+		String description = describeEntryToSeek(ent);
+		URI openBisURI = resolveToURI(ingestion.dataRoot, ent.getName());
+		URL seekURL = seek.linkFileAsset(metadata.getUser(),
+				metadata.getExperiment(), description, title, openBisURI);
+		metadata.setSeekLocation(ent, seekURL);
 	}
 
 	/**

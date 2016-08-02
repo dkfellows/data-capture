@@ -28,6 +28,11 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
+/**
+ * Class and bean that implements the application's user-facing interface.
+ *
+ * @author Donal Fellows
+ */
 @Path("/")
 @RolesAllowed("ROLE_USER")
 public class Application implements Interface {

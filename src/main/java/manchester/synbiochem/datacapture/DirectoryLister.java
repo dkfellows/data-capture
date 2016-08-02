@@ -17,6 +17,13 @@ import manchester.synbiochem.datacapture.Interface.Directory;
 import org.apache.commons.logging.Log;
 import org.springframework.beans.factory.annotation.Value;
 
+/**
+ * Class and bean that handles listing of directories and maintaining where
+ * should be archived and where shouldn't. This is the core of the policy used
+ * in the security enforcement point.
+ * 
+ * @author Donal Fellows
+ */
 public class DirectoryLister {
 	private Log log = getLog(DirectoryLister.class);
 	private List<File> roots;

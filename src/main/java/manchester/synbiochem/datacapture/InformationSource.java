@@ -10,6 +10,12 @@ import manchester.synbiochem.datacapture.SeekConnector.Study;
 
 import org.springframework.beans.factory.annotation.Value;
 
+/**
+ * Class and bean used to work out what instrument and project are in play for a
+ * particular ingestion.
+ * 
+ * @author Donal Fellows
+ */
 public class InformationSource {
 	private Map<String, String> instrumentTypes = new HashMap<>();
 	@Value("${project.master.name:synbiochem}")

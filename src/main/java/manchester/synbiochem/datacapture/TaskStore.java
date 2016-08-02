@@ -39,6 +39,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.task.AsyncTaskExecutor;
 
+/**
+ * Class and bean that manages the collection of archiving tasks, both current
+ * and historic. Note that this also acts as the factory of tasks.
+ * 
+ * @author Donal Fellows
+ */
 public class TaskStore {
 	private int count;
 	private Map<String, FinishedTask> doneTasks = new TreeMap<>();

@@ -5,11 +5,8 @@ import static javax.ws.rs.core.Response.created;
 import static javax.ws.rs.core.Response.seeOther;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 
-import java.net.URL;
-import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -42,8 +39,6 @@ public class Application implements Interface {
 	TaskStore tasks;
 	@Autowired
 	DirectoryLister lister;
-	@Autowired
-	InformationSource info;
 	private Log log = LogFactory.getLog(getClass());
 
 	@Override
@@ -164,22 +159,9 @@ public class Application implements Interface {
 		return tasks.newTask(user, assay, dirs);
 	}
 
-	private static final String DESCRIPTION_TEMPLATE = "Capture of data relating to '%s' from the %s instrument in the %s project at %s.";
-
 	private String createTask(User user, Study s0, List<String> dirs) {
 		Study study = seek.getStudy(s0.url);
-		String machine = info.getMachineName(dirs.get(0));
-		String project = info.getProjectName(machine, study);
-		String now = DateFormat.getInstance().format(new Date());
-		// Not the greatest way of creating a title, but not too problematic either.
-		String title = dirs.get(0).replaceFirst("/+$", "")
-				.replaceFirst(".*/", "").replace("_", " ");
-		String description = String.format(DESCRIPTION_TEMPLATE, title,
-				machine, project, now);
-		URL url = seek.createExperimentalAssay(user, study, description, title);
-		log.info("created assay at " + url);
-		Assay assay = seek.getAssay(url);
-		return tasks.newTask(user, assay, dirs);
+		return tasks.newTask(user, study, dirs);
 	}
 
 	@Override

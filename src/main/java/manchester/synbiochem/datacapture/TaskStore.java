@@ -1,5 +1,6 @@
 package manchester.synbiochem.datacapture;
 
+import static java.lang.String.format;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.GONE;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
@@ -12,6 +13,7 @@ import java.io.ObjectInputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,6 +32,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.UriBuilder;
 
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
+import manchester.synbiochem.datacapture.SeekConnector.Study;
 import manchester.synbiochem.datacapture.SeekConnector.User;
 
 import org.apache.commons.logging.Log;
@@ -260,5 +263,22 @@ public class TaskStore {
 		TreeSet<String> ts = new TreeSet<>(tasks.keySet());
 		ts.addAll(doneTasks.keySet());
 		return new ArrayList<>(ts);
+	}
+
+	private static final String DESCRIPTION_TEMPLATE = "Capture of data relating to '%s' from the %s instrument in the %s project at %s.";
+
+	public String newTask(User user, Study study, List<String> dirs) {
+		String machine = infoSource.getMachineName(dirs.get(0));
+		String project = infoSource.getProjectName(machine, study);
+		String now = DateFormat.getInstance().format(new Date());
+		// Not the greatest way of creating a title, but not too problematic either.
+		String title = dirs.get(0).replaceFirst("/+$", "")
+				.replaceFirst(".*/", "").replace("_", " ");
+		String description = format(DESCRIPTION_TEMPLATE, title, machine,
+				project, now);
+		URL url = seek.createExperimentalAssay(user, study, description, title);
+		log.info("created assay at " + url);
+		Assay assay = seek.getAssay(url);
+		return newTask(user, assay, dirs);
 	}
 }

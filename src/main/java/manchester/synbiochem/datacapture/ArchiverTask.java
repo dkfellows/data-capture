@@ -261,7 +261,7 @@ public class ArchiverTask implements Callable<URL> {
 		return dest;
 	}
 
-	private IngestionResult ingestIntoOpenBIS() {
+	protected IngestionResult ingestIntoOpenBIS() {
 		try {
 			File base = new File(archiveRoot, directoryToArchive.getName());
 			return ingester.ingest(base, machine, project);

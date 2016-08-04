@@ -1,6 +1,6 @@
 package manchester.synbiochem.datacapture;
 
-import static java.lang.String.format;
+import static java.util.Collections.singletonList;
 import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.GONE;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
@@ -13,7 +13,6 @@ import java.io.ObjectInputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -23,6 +22,7 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -31,6 +31,7 @@ import javax.annotation.PreDestroy;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.UriBuilder;
 
+import manchester.synbiochem.datacapture.Interface.ArchiveTask;
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
 import manchester.synbiochem.datacapture.SeekConnector.Study;
 import manchester.synbiochem.datacapture.SeekConnector.User;
@@ -85,6 +86,7 @@ public class TaskStore {
 			// Skip anything untoward
 			if (f.getName().startsWith(".") || !f.isFile())
 				continue;
+			log.info("loading finished task from " + f);
 			try (InputStream fis = new FileInputStream(f);
 					ObjectInputStream ois = new ObjectInputStream(fis)) {
 				FinishedTask ft = (FinishedTask) ois.readObject();
@@ -117,26 +119,63 @@ public class TaskStore {
 		URL getCreatedAsset();
 	}
 
+	private Future<URL> submit(final ArchiverTask task) {
+		return executor.submit(new Callable<URL>() {
+			@Override
+			public URL call() throws Exception {
+				try {
+					return task.call();
+				} finally {
+					finishedTask(task);
+				}
+			}
+		});
+	}
+
 	public String newTask(SeekConnector.User user, SeekConnector.Assay assay,
 			List<String> dirs) {
+		if (user == null || user.url == null)
+			throw new IllegalArgumentException("need a user with a URL");
+		if (assay == null || assay.url == null)
+			throw new IllegalArgumentException("need an assay with a URL");
+		File d = existingDirectory(dirs);
+
 		MetadataRecorder md = new MetadataRecorder(tika);
-		assert user != null && user.url != null;
 		md.setUser(user);
-		assert assay != null && assay.url != null;
 		md.setExperiment(assay);
-		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot,
-				existingDirectory(dirs), seek, ingester, infoSource);
-		Future<URL> taskResult = executor.submit(at);
+		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot, d,
+				seek, ingester, infoSource);
+		return storeTask(d, md, at, submit(at));
+	}
+
+	public String newTask(User user, Study study, List<String> dirs) {
+		if (user == null || user.url == null)
+			throw new IllegalArgumentException("need a user with a URL");
+		if (study == null || study.url == null)
+			throw new IllegalArgumentException("need a study with a URL");
+		File d = existingDirectory(dirs);
+
+		MetadataRecorder md = new MetadataRecorder(tika);
+		md.setUser(user);
+		md.setExperiment(study);
+		ArchiverTask at = new StudyCreatingArchiverTask(study, md, archRoot,
+				metaRoot, cifsRoot, d, seek, ingester, infoSource);
+		return storeTask(d, md, at, submit(at));
+	}
+
+	private String storeTask(File d, MetadataRecorder md, ArchiverTask at,
+			Future<URL> taskResult) {
+		List<String> dirs = singletonList(d.getAbsolutePath());
+		String key;
 		synchronized (this) {
-			String key;
 			do {
 				key = "task" + (++count);
 			} while (tasks.containsKey(key) || doneTasks.containsKey(key));
 			ActiveTask p = new ActiveTask(key, md, dirs, at, taskResult);
 			tasks.put(key, p);
 			at.setJavaTask(taskResult);
-			return key;
 		}
+		return key;
 	}
 
 	/**
@@ -175,9 +214,9 @@ public class TaskStore {
 		return task;
 	}
 
-	public Interface.ArchiveTask describeTask(String id, UriBuilder ub) {
+	public ArchiveTask describeTask(String id, UriBuilder ub) {
 		Task task = get(id);
-		Interface.ArchiveTask result = new Interface.ArchiveTask();
+		ArchiveTask result = new ArchiveTask();
 		result.id = id;
 		result.status = task.getStatus();
 		result.progress = task.getProgress();
@@ -197,24 +236,47 @@ public class TaskStore {
 		if (ub != null)
 			result.url = ub.build(id);
 		try {
-			if (task.isDone()) {
-				URL made = task.getCreatedAsset();
-				if (made != null)
-					result.createdAsset = made.toURI();
-				if (task instanceof ActiveTask)
-					synchronized (this) {
-						ActiveTask at = (ActiveTask) task;
-						tasks.remove(at.getKey());
-						doneTasks.put(at.getKey(),
-								at.toFinished(savedTasksRoot));
-					}
-			}
+			finalizeDoneActiveTask(task, result);
 		} catch (URISyntaxException e) {
 			// ignore these; they should all be impossible
 		} catch (IOException e) {
 			log.error("problem when serializing task", e);
 		}
 		return result;
+	}
+
+	private void finalizeDoneActiveTask(Task task, ArchiveTask result)
+			throws URISyntaxException, IOException {
+		if (!task.isDone())
+			return;
+		URL made = task.getCreatedAsset();
+		if (made != null)
+			result.createdAsset = made.toURI();
+		if (!(task instanceof ActiveTask))
+			return;
+		synchronized (this) {
+			ActiveTask at = (ActiveTask) task;
+			tasks.remove(at.getKey());
+			finishedTask(at);
+		}
+	}
+
+	private void finishedTask(ArchiverTask at) throws IOException {
+		// Ugly search, but space should be fairly small
+		ActiveTask t = null;
+		synchronized(this) {
+			for (ActiveTask e : tasks.values())
+				if (e.getTask() == at) {
+					t = e;
+					break;
+				}
+		}
+		if (t != null)
+			finishedTask(t);
+	}
+	private void finishedTask(ActiveTask task) throws IOException {
+		log.info("stashing " + task.getKey() + " on disk");
+		doneTasks.put(task.getKey(), task.toFinished(savedTasksRoot));
 	}
 
 	public void deleteTask(String id) throws InterruptedException,
@@ -244,8 +306,7 @@ public class TaskStore {
 			if (task != null && !task.isDone()) {
 				task.cancel(true);
 				try {
-					doneTasks.put(task.getKey(),
-							task.toFinished(savedTasksRoot));
+					finishedTask(task);
 				} catch (IOException e) {
 					log.error("problem when serializing task", e);
 				}
@@ -263,22 +324,5 @@ public class TaskStore {
 		TreeSet<String> ts = new TreeSet<>(tasks.keySet());
 		ts.addAll(doneTasks.keySet());
 		return new ArrayList<>(ts);
-	}
-
-	private static final String DESCRIPTION_TEMPLATE = "Capture of data relating to '%s' from the %s instrument in the %s project at %s.";
-
-	public String newTask(User user, Study study, List<String> dirs) {
-		String machine = infoSource.getMachineName(dirs.get(0));
-		String project = infoSource.getProjectName(machine, study);
-		String now = DateFormat.getInstance().format(new Date());
-		// Not the greatest way of creating a title, but not too problematic either.
-		String title = dirs.get(0).replaceFirst("/+$", "")
-				.replaceFirst(".*/", "").replace("_", " ");
-		String description = format(DESCRIPTION_TEMPLATE, title, machine,
-				project, now);
-		URL url = seek.createExperimentalAssay(user, study, description, title);
-		log.info("created assay at " + url);
-		Assay assay = seek.getAssay(url);
-		return newTask(user, assay, dirs);
 	}
 }

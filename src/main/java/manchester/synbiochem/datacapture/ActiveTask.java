@@ -30,8 +30,8 @@ class ActiveTask implements TaskStore.Task {
 		this.result = result;
 	}
 
-	private MetadataRecorder md;
-	private ArchiverTask task;
+	private final MetadataRecorder md;
+	private final ArchiverTask task;
 	private Future<URL> result;
 	private final String key;
 	private final List<String> dirs;
@@ -92,6 +92,10 @@ class ActiveTask implements TaskStore.Task {
 		if (task.finish == null)
 			return null;
 		return new Date(task.finish.longValue());
+	}
+
+	ArchiverTask getTask() {
+		return task;
 	}
 
 	private Future<URL> getResult() throws InterruptedException,

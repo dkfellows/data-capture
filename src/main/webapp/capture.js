@@ -156,10 +156,20 @@ function setProgress(progress, factor, status) {
 		return val == 100;
 	}
 }
+/** Show the spinner. */
+function showSpinner() {
+	$("#loader").css({
+		display : "block"
+	});
+}
+/** Hide the spinner. */
+function hideSpinner() {
+	$("#loader").css({
+		display : "none"
+	});
+}
 
-/**
- * Create a row of the task table
- */
+/** Create a row of the task table */
 function addTaskRow(table, task) {
 	/** Create a delete button */
 	function delbutn(id) {
@@ -311,8 +321,13 @@ function createIngestTask(user, assay, study, dir) {
 			url : study
 		};
 	console.log("Making ingestion request:", request);
+	showSpinner();
 	postJSON($("#apiTasks")[0].href, request, function(data) {
+		hideSpinner();
 		addTaskRow($("#tasks"), data);
+	}, function(jqXHR, textStatus, errorThrown) {
+		hideSpinner();
+		console.log("problem when posting to " + $("#apiTasks")[0].href, request, errorThrown);
 	});
 }
 
@@ -382,7 +397,14 @@ $(function() {
 	$("#create-task").button().on("click", function() {
 		dialog.dialog("open");
 	});
+	showSpinner();
+	var retrieveCount = 5;
+	function doneRetrieve() {
+		if (--retrieveCount == 0)
+			hideSpinner();
+	}
 	getJSON($("#apiUsers")[0].href, function(data) {
+		doneRetrieve();
 		dejson(data.user).forEach(function(item) {
 			addOption(theUsers, item.id, item.url, item.name).
 				attr("sort-key", item.name);
@@ -391,6 +413,7 @@ $(function() {
 	});
 	var retrievedStudies = undefined;
 	var retrievedAssays = undefined;
+	
 	function buildTree(studies, assays) {
 		var treeData = {};
 		function addTreeNode(key, node) {
@@ -434,16 +457,19 @@ $(function() {
 				state : { opened : true },
 				text : "Investigation: " + item["investigation-name"]
 			});
+			var pn = parentNode;
 			parentNode = addTreeNode(item["study-url"], {
 				parent : parentNode,
 				icon : studyIcon,
 				text : "Study: " + item["study-name"]
 			});
-			parentNode = addTreeNode(item.url, {
-				parent : parentNode,
-				icon : assayIcon,
-				text : "Assay: " + item.name
-			});
+			if (parentNode !== pn)
+				// Ignore improperly-structured assays
+				addTreeNode(item.url, {
+					parent : parentNode,
+					icon : assayIcon,
+					text : "Assay: " + item.name
+				});
 		});
 		var theData = Object.keys(treeData).map(function(x){return treeData[x];});
 		theData.sort(function(a,b){return a.text<b.text?-1:a.text>b.text?1:0;});
@@ -465,6 +491,7 @@ $(function() {
 		});
 	}
 	getJSON($("#apiStudies")[0].href, function(data){
+		doneRetrieve();
 		retrievedStudies = dejson(data.study);
 		var c = 0
 		retrievedStudies.forEach(function(item){
@@ -474,6 +501,7 @@ $(function() {
 			buildTree(retrievedStudies, retrievedAssays);
 	});
 	getJSON($("#apiAssays")[0].href, function(data) {
+		doneRetrieve();
 		retrievedAssays = dejson(data.assay);
 		var c = 0;
 		retrievedAssays.forEach(function(item) {
@@ -484,6 +512,7 @@ $(function() {
 	});
 	var dataLeaves = {};
 	getJSON($("#apiDirs")[0].href, function(data) {
+		doneRetrieve();
 		theDirs.children().each(function(){
 			var a = $(this).attr("sort-key");
 			if (a === undefined) {
@@ -539,6 +568,7 @@ $(function() {
 		});
 	});
 	getJSON($("#apiTasks")[0].href, function(data) {
+		doneRetrieve();
 		var context = $("#tasks");
 		dejson(data.task).forEach(function(t) {
 			addTaskRow(context, t);

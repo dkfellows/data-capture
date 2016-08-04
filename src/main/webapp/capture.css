@@ -76,3 +76,16 @@ fieldset {
 	overflow: auto;
 	padding: 15px 15px;
 }
+
+.loader {
+	display: none;
+	justify-content: center;
+	text-align: center;
+	width: 70px;
+	height: 70px;
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	margin-right: -50%;
+	transform: translate(-50%,-50%);
+}

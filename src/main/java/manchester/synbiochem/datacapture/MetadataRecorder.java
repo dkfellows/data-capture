@@ -40,6 +40,7 @@ import java.util.TimeZone;
 
 import manchester.synbiochem.datacapture.ArchiverTask.Entry;
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
+import manchester.synbiochem.datacapture.SeekConnector.Study;
 import manchester.synbiochem.datacapture.SeekConnector.User;
 
 import org.apache.commons.csv.CSVFormat;
@@ -66,6 +67,7 @@ public class MetadataRecorder {
 	private final JSONObject o;
 	private User user;
 	private Assay assay;
+	private Study study;
 	private StringBuilder csvBuffer;
 	private CSVPrinter csv;
 	private Map<String, CSVRow> csvRows = new HashMap<>();
@@ -215,8 +217,24 @@ public class MetadataRecorder {
 		this.assay = experiment;
 	}
 
+	public void setExperiment(Study experiment) {
+		if (experiment == null)
+			o.put(EXPERIMENT, NULL);
+		else
+			o.put(EXPERIMENT, experiment.url.toString());
+		this.study = experiment;
+	}
+
 	public Assay getExperiment() {
 		return assay;
+	}
+
+	public String getProjectName() {
+		if (assay != null)
+			return assay.projectName;
+		if (study != null)
+			return study.projectName;
+		return null;
 	}
 
 	public void setUser(User user) {

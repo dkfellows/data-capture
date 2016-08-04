@@ -8,6 +8,8 @@ import java.util.Map;
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
 import manchester.synbiochem.datacapture.SeekConnector.Study;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Value;
 
 /**
@@ -17,9 +19,12 @@ import org.springframework.beans.factory.annotation.Value;
  * @author Donal Fellows
  */
 public class InformationSource {
+	private Log log = LogFactory.getLog(getClass());
 	private Map<String, String> instrumentTypes = new HashMap<>();
 	@Value("${project.master.name:synbiochem}")
 	private String projectMasterName;
+	@Value("${project.default.instrument.type:SBC}")
+	private String defaultInstrumentType;
 
 	@Value("#{'${instrument.types}'.split(',')}")
 	private void setInstrumentTypes(List<String> items) {
@@ -33,7 +38,7 @@ public class InformationSource {
 	public String getInstrumentType(String instrumentName) {
 		String type = instrumentTypes.get(instrumentName.toLowerCase());
 		if (type == null)
-			type = "SBC";
+			type = defaultInstrumentType;
 		return type;
 	}
 
@@ -42,6 +47,7 @@ public class InformationSource {
 	}
 
 	public String getMachineName(File sourceDir) {
+		log.info("getting machine name from directory: " + sourceDir);
 		File sd = sourceDir;
 		do {
 			sd = sd.getParentFile();
@@ -54,6 +60,8 @@ public class InformationSource {
 	}
 
 	private String getProjectName(String machine, String projectName) {
+		log.info("getting internal project name for machine:" + machine
+				+ " and project:" + projectName);
 		String prefix = getInstrumentType(machine);
 		String project = "capture";
 		if (projectName != null)
@@ -64,7 +72,7 @@ public class InformationSource {
 	}
 
 	public String getProjectName(String machine, MetadataRecorder metadata) {
-		return getProjectName(machine, metadata.getExperiment().projectName);
+		return getProjectName(machine, metadata.getProjectName());
 	}
 
 	public String getProjectName(String machine, Assay assay) {

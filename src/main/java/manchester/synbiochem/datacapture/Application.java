@@ -156,11 +156,15 @@ public class Application implements Interface {
 
 	private String createTask(User user, Assay a0, List<String> dirs) {
 		Assay assay = seek.getAssay(a0.url);
+		log.info("creating task for " + user.name + " to work on assay "
+				+ assay.url + " (" + assay.name + ")");
 		return tasks.newTask(user, assay, dirs);
 	}
 
 	private String createTask(User user, Study s0, List<String> dirs) {
 		Study study = seek.getStudy(s0.url);
+		log.info("creating task for " + user.name + " to work on study "
+				+ study.url + " (" + study.name + ")");
 		return tasks.newTask(user, study, dirs);
 	}
 

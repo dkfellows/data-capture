@@ -536,19 +536,31 @@ class StudyCreatingArchiverTask extends ArchiverTask {
 		return buffer.toString();
 	}
 
+	/*
+	 * Not the greatest way of creating a title, but not too problematic
+	 * either.
+	 */
+	private String getAssayTitle(String directoryName) {
+		String title = directoryName.replace("_", " ");
+		if (title.matches("^\\d+ \\d+ \\d+ .*$")) {
+			// If the leading part looks like a date, make it look more like a date
+			String[] parts = title.split(" +", 4);
+			title = parts[0] + "/" + parts[1] + "/" + parts[2] + " " + parts[3];
+		}
+		return title;
+	}
+
 	@Override
 	protected void makeAssay(IngestionResult ingestion) {
-		/*
-		 * Not the greatest way of creating a title, but not too problematic
-		 * either.
-		 */
 		String directoryName = directoryToArchive.getAbsolutePath()
 				.replaceFirst("/+$", "").replaceFirst(".*/", "")
 				.replace("_", " ");
 		String description = describeAssay(directoryName, ingestion);
+		String title = getAssayTitle(directoryName);
 
 		URL url = seek.createExperimentalAssay(metadata.getUser(), study,
-				description, directoryName);
+				description, title);
+
 		log.info("created assay at " + url);
 		metadata.setExperiment(seek.getAssay(url));
 	}

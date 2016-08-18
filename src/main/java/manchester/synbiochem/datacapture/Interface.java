@@ -67,7 +67,7 @@ public interface Interface {
 	@GET
 	@Path("tasks/{id}")
 	@Produces(JSON)
-	ArchiveTask task(@PathParam("id") String id);
+	Response task(@PathParam("id") String id);
 
 	@POST
 	@Path("tasks")

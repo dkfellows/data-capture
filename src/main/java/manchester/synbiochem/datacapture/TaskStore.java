@@ -1,9 +1,7 @@
 package manchester.synbiochem.datacapture;
 
 import static java.util.Collections.singletonList;
-import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.GONE;
-import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,6 +26,8 @@ import java.util.concurrent.Future;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.UriBuilder;
 
@@ -193,24 +193,24 @@ public class TaskStore {
 			if (dir.exists())
 				return dir;
 		}
-		throw new WebApplicationException("no such directory", BAD_REQUEST);
+		throw new BadRequestException("no such directory");
 	}
 
 	/**
 	 * @param id
 	 * @return Never returns <tt>null</tt>.
 	 * @throws WebApplicationException
-	 *             if the task cannot be found.
+	 *             if the task cannot be found or there are other problems.
 	 */
 	private synchronized Task get(String id) {
 		if (id == null || id.isEmpty())
-			throw new WebApplicationException("silly input", BAD_REQUEST);
+			throw new BadRequestException("bad task id");
 		FinishedTask t = doneTasks.get(id);
 		if (t != null)
 			return t;
 		ActiveTask task = tasks.get(id);
 		if (task == null)
-			throw new WebApplicationException(NOT_FOUND);
+			throw new NotFoundException("no such task");
 		return task;
 	}
 

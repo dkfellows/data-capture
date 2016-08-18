@@ -5,8 +5,6 @@ import static java.net.Proxy.Type.HTTP;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.sort;
 import static java.util.regex.Pattern.compile;
-import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
-import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.fromStatusCode;
 import static org.apache.commons.codec.binary.Base64.encodeBase64String;
 import static org.apache.commons.io.IOUtils.readLines;
@@ -33,7 +31,9 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.ServiceUnavailableException;
 import javax.ws.rs.core.Response.Status;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -253,15 +253,20 @@ public class SeekConnector {
 	private long usersTimestamp;
 
 	public User getUser(URL userURL) {
-		URI userURI = asURI(userURL);
+		URI userURI;
+		try {
+			userURI = asURI(userURL);
+		} catch (URISyntaxException e) {
+			throw new BadRequestException(e);
+		}
 		for (User user : getUsers())
 			try {
 				if (asURI(user.url).equals(userURI))
 					return user;
-			} catch (WebApplicationException e) {
+			} catch (URISyntaxException e) {
 				log.warn("bad URI returned from SEEK; skipping to next", e);
 			}
-		throw new WebApplicationException("no such user", BAD_REQUEST);
+		throw new BadRequestException("no such user");
 	}
 
 	public List<User> getUsers() {
@@ -312,45 +317,51 @@ public class SeekConnector {
 		return users;
 	}
 
-	private URI asURI(URL url) {
-		try {
-			String s = url.toURI().toString();
-			switch (seek.getProtocol()) {
-			case "http":
-				s = s.replaceFirst("(?i)^https:", "http:");
-				break;
-			case "https":
-				s = s.replaceFirst("(?i)^http:", "https:");
-				break;
-			}
-			return new URI(s);
-		} catch (URISyntaxException e) {
-			throw new WebApplicationException(e, BAD_REQUEST);
+	private URI asURI(URL url) throws URISyntaxException {
+		String s = url.toURI().toString();
+		switch (seek.getProtocol()) {
+		case "http":
+			s = s.replaceFirst("(?i)^https:", "http:");
+			break;
+		case "https":
+			s = s.replaceFirst("(?i)^http:", "https:");
+			break;
 		}
+		return new URI(s);
 	}
 
 	public Assay getAssay(URL assayURL) {
-		URI assayURI = asURI(assayURL);
+		URI assayURI;
+		try {
+			assayURI = asURI(assayURL);
+		} catch (URISyntaxException e) {
+			throw new BadRequestException(e);
+		}
 		for (Assay assay : getAssays())
 			try {
 				if (asURI(assay.url).equals(assayURI))
 					return assay;
-			} catch (WebApplicationException e) {
+			} catch (URISyntaxException e) {
 				log.warn("bad URI returned from SEEK; skipping to next", e);
 			}
-		throw new WebApplicationException("no such assay", BAD_REQUEST);
+		throw new BadRequestException("no such assay");
 	}
 
 	public Study getStudy(URL studyURL) {
-		URI studyURI = asURI(studyURL);
+		URI studyURI;
+		try {
+			studyURI = asURI(studyURL);
+		} catch (URISyntaxException e) {
+			throw new BadRequestException(e);
+		}
 		for (Study study : getStudies())
 			try {
 				if (asURI(study.url).equals(studyURI))
 					return study;
-			} catch (WebApplicationException e) {
+			} catch (URISyntaxException e) {
 				log.warn("bad URI returned from SEEK; skipping to next", e);
 			}
-		throw new WebApplicationException("no such study", BAD_REQUEST);
+		throw new BadRequestException("no such study");
 	}
 
 	private static List<Element> getElements(Element parent, String namespace,
@@ -581,8 +592,7 @@ public class SeekConnector {
 				log.error(logPrefix + ": " + line);
 			errors.close();
 		}
-		throw new WebApplicationException(format(message, rc, msg),
-				INTERNAL_SERVER_ERROR);
+		throw new InternalServerErrorException(format(message, rc, msg));
 	}
 
 	public URL createExperimentalAssay(User user, Study study, 
@@ -604,6 +614,8 @@ public class SeekConnector {
 					URL url = new URL(seek, c.getHeaderField("Location"));
 					log.info("assay created with location " + url);
 					return url;
+				case SERVICE_UNAVAILABLE:
+					throw new ServiceUnavailableException("SEEK is not available");
 				default:
 					readErrorFromConnection(c, "problem in form post",
 							"write to SEEK failed with code %d: %s");
@@ -614,7 +626,7 @@ public class SeekConnector {
 				c.disconnect();
 			}
 		} catch (IOException e) {
-			throw new WebApplicationException("HTTP error", e);
+			throw new InternalServerErrorException("HTTP error talking to SEEK", e);
 		}
 	}
 
@@ -633,6 +645,8 @@ public class SeekConnector {
 					URL url = new URL(seek, c.getHeaderField("Location"));
 					log.info("linked asset at " + url);
 					return url;
+				case SERVICE_UNAVAILABLE:
+					throw new ServiceUnavailableException("SEEK is not available");
 				default:
 					readErrorFromConnection(c, "problem in file link",
 							"link failed with code %d: %s");
@@ -643,7 +657,7 @@ public class SeekConnector {
 				c.disconnect();
 			}
 		} catch (IOException e) {
-			throw new WebApplicationException("HTTP error", e);
+			throw new InternalServerErrorException("HTTP error", e);
 		}
 	}
 
@@ -662,6 +676,8 @@ public class SeekConnector {
 					URL url = new URL(seek, c.getHeaderField("Location"));
 					log.info("uploaded asset at " + url);
 					return url;
+				case SERVICE_UNAVAILABLE:
+					throw new ServiceUnavailableException("SEEK is not available");
 				default:
 					readErrorFromConnection(c, "problem in file upload",
 							"upload failed with code %d: %s");
@@ -672,7 +688,7 @@ public class SeekConnector {
 				c.disconnect();
 			}
 		} catch (IOException e) {
-			throw new WebApplicationException("HTTP error", e);
+			throw new InternalServerErrorException("HTTP error", e);
 		}
 	}
 

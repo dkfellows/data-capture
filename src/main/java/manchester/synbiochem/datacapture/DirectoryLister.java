@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Set;
 
 import javax.annotation.PostConstruct;
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.WebApplicationException;
 
 import manchester.synbiochem.datacapture.Interface.Directory;
@@ -103,8 +104,8 @@ public class DirectoryLister {
 		for (Directory dir : directory) {
 			String name = dir.name;
 			if (!sd.contains(name))
-				throw new WebApplicationException("no such directory: " + name
-						+ " not in " + sd, 400);
+				throw new BadRequestException("no such directory: " + name
+						+ " not in " + sd);
 			real.add(name);
 		}
 		return real;

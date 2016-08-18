@@ -22,15 +22,24 @@ function addOption(select, id, value, name) {
 	return opt;
 }
 /** How to sort DOM elements. */
-function sortChildren(container, property) {
+function sortChildren(container, property, defaultValue) {
+	if (property === undefined)
+		property = "sort-key";
+	if (defaultValue === undefined)
+		defaultValue = "";
 	var elems = container.children();
 	elems.sort(function(a,b) {
 		var aProp = a.getAttribute(property);
+		if (aProp === null || aProp === undefined)
+			aProp = defaultValue;
 		var bProp = b.getAttribute(property);
+		if (bProp === null || bProp === undefined)
+			bProp = defaultValue;
 		return aProp>bProp ? 1 : aProp<bProp ? -1 : 0;
 	});
-	elems.detach().appendTo(container);
+	elems.appendTo(container);
 }
+
 /** How to request some JSON asynchronously */
 function getJSON(u, done, errors) {
 	if (errors === undefined)
@@ -196,14 +205,23 @@ function addTaskRow(table, task) {
 		return row;
 	row = $("<tr id='" + task.id + "' class='taskrow'>");
 	/** Create a cell in the task table row */
-	function cell(id) {
+	function cell() {
 		var td = $("<td>");
 		row.append(td);
 		return td;
 	}
 	/** Create a cell that links to a named thing */
 	function linkcell(thing) {
-		return cell().append($("<a>").attr("href", thing.url).text(thing.name));
+		if(thing !== undefined) {
+			var content = $("<a>");
+			if (thing.url !== undefined)
+				content.attr("href", thing.url);
+			var name = thing.name;
+			if (name === undefined)
+				name = "UNDEFINED";
+			return cell().append(content.text(name));
+		}
+		return cell();
 	}
 	/** Create a cell containing a timestamp */
 	function datecell(timestamp) {
@@ -226,9 +244,16 @@ function addTaskRow(table, task) {
 		name : asset === undefined ? "" : "Asset"
 	}).attr("id", "asset_" + id);
 	cell().append(delbutn(task.id).click(function() {
+		var thisRow = $("#" + task.id);
+		showSpinner();
 		deleteJSON($("#apiTasks")[0].href + "/" + task.id, function(response) {
+			hideSpinner();
 			console.log("response from delete", response);
-			$("#" + task.id).remove();
+			thisRow.remove();
+		}, function(jqXHR, textStatus, errorThrown) {
+			hideSpinner();
+			console.log("response from delete", textStatus);
+			thisRow.remove();
 		});
 	}));
 	table.append(row);
@@ -282,7 +307,7 @@ function updateDirs() {
 					+ info.instrument + " Dir: " + info.dir).
 				attr("sort-key", item.name);
 		});
-		sortChildren(context, "sort-key");
+		sortChildren(context);
 	});
 }
 function getAssayTitle(assay) {
@@ -299,7 +324,7 @@ function updateAssays() {
 			addOption(context, item.id, item.url, getAssayTitle(item)).
 				attr("sort-key", item.name);
 		});
-		sortChildren(context, "sort-key");
+		sortChildren(context);
 	});
 }
 
@@ -337,6 +362,8 @@ var theCurrentStudy = undefined;
 var theCurrentAssay = undefined;
 /** What is the currently-selected directory? */
 var theCurrentDir = undefined;
+/** What nodes in the directory list are usefully selectable? */
+var dirLeaves = {};
 /** Start everything going on page load */
 $(function() {
 	var theUsers = $("#users"), theAssays = $("#assays"), theDirs = $("#dirs");
@@ -363,7 +390,7 @@ $(function() {
 		var theStudy = theCurrentStudy;
 		var theAssay = theCurrentAssay;
 		var theDir = theCurrentDir;
-		console.log("u:", theUser, "x:", theAssay||theStudy, "d:", theDir);
+		//console.log("u:", theUser, "x:", theAssay||theStudy, "d:", theDir);
 		var disabled = (theUser === undefined || (theStudy === undefined && theAssay === undefined) || theDir === undefined);
 		$("#newOK").button("option", "disabled", disabled);
 	}
@@ -403,18 +430,19 @@ $(function() {
 		if (--retrieveCount == 0)
 			hideSpinner();
 	}
+	$("#users_initial").attr("sort-key", "");
 	getJSON($("#apiUsers")[0].href, function(data) {
 		doneRetrieve();
 		dejson(data.user).forEach(function(item) {
 			addOption(theUsers, item.id, item.url, item.name).
 				attr("sort-key", item.name);
 		});
-		sortChildren(theUsers, "sort-key");
+		sortChildren(theUsers);
 	});
 	var retrievedStudies = undefined;
 	var retrievedAssays = undefined;
 	
-	function buildTree(studies, assays) {
+	function buildISATree(studies, assays) {
 		var treeData = {};
 		function addTreeNode(key, node) {
 			if (key !== undefined && treeData[key] === undefined) {
@@ -477,51 +505,32 @@ $(function() {
 			core: { "data": theData, multiple: false }
 		}).on('select_node.jstree', function(node, selection){
 			var sel = selection.selected[0];
-			if (sel.match(/assays/)) {
-				theCurrentAssay = sel;
-			} else {
-				theCurrentAssay = undefined;
-			}
-			if (sel.match(/studies/)) {
-				theCurrentStudy = sel;
-			} else {
-				theCurrentStudy = undefined;
-			}
+			theCurrentAssay = sel.match(/assays/) ? sel : undefined;
+			theCurrentStudy = sel.match(/studies/) ? sel : undefined;
 			updateEnabled();
 		});
 	}
 	getJSON($("#apiStudies")[0].href, function(data){
 		doneRetrieve();
 		retrievedStudies = dejson(data.study);
-		var c = 0
-		retrievedStudies.forEach(function(item){
-			console.log("Study #" + (++c), item);
-		});
 		if (retrievedAssays !== undefined)
-			buildTree(retrievedStudies, retrievedAssays);
+			buildISATree(retrievedStudies, retrievedAssays);
 	});
 	getJSON($("#apiAssays")[0].href, function(data) {
 		doneRetrieve();
 		retrievedAssays = dejson(data.assay);
-		var c = 0;
-		retrievedAssays.forEach(function(item) {
-			console.log("Assay #" + (++c), item);
-		});
 		if (retrievedStudies !== undefined)
-			buildTree(retrievedStudies, retrievedAssays);
+			buildISATree(retrievedStudies, retrievedAssays);
 	});
-	var dataLeaves = {};
 	getJSON($("#apiDirs")[0].href, function(data) {
 		doneRetrieve();
-		theDirs.children().each(function(){
-			var a = $(this).attr("sort-key");
-			if (a === undefined) {
-				$(this).attr("sort-key", "");
-			}
-		});
+		buildDirTree(dejson(data.directory), $("#dirtree"));
+	});
+
+	function buildDirTree(items, container) {
 		var treeData = {};
-		var leaves = {};
-		dejson(data.directory).forEach(function(item) {
+		dirLeaves = {};
+		items.forEach(function(item) {
 			var bits = item.name.split("/");
 			var instrument = bits.slice(0,3).join("/");
 			treeData[instrument] = {
@@ -550,23 +559,27 @@ $(function() {
 					text: "Data: " + bits.slice(3).join("/")
 				};
 			}
-			leaves[item.name] = true;
+			dirLeaves[item.name] = true;
 		});
-		dataLeaves = leaves;
-		treeData = Object.keys(treeData).map(function(x){return treeData[x];});
-		treeData.sort(function(a,b){return a.text<b.text?-1:a.text>b.text?1:0;});
-		$("#dirtree").jstree({
+		treeData = Object.keys(treeData).map(function(x){
+			return treeData[x];
+		});
+		treeData.sort(function(a,b){
+			return a.text<b.text ? -1: a.text>b.text ? 1:0;
+		});
+		container.jstree({
 			core: {"data": treeData, multiple: false}
 		}).on('select_node.jstree', function(node, selection){
 			var sel = selection.selected[0];
-			if (dataLeaves[sel] !== undefined) {
+			if (dirLeaves[sel] !== undefined) {
 				theCurrentDir = sel;
 			} else {
 				theCurrentDir = undefined;
 			}
 			updateEnabled();
 		});
-	});
+	}
+
 	getJSON($("#apiTasks")[0].href, function(data) {
 		doneRetrieve();
 		var context = $("#tasks");

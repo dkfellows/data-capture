@@ -2,8 +2,10 @@ package manchester.synbiochem.datacapture;
 
 import static java.util.Collections.sort;
 import static javax.ws.rs.core.Response.created;
+import static javax.ws.rs.core.Response.ok;
 import static javax.ws.rs.core.Response.seeOther;
-import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
+import static javax.ws.rs.core.Response.Status.NOT_FOUND;
+import static manchester.synbiochem.datacapture.Constants.JSON;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -11,8 +13,10 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import javax.annotation.security.RolesAllowed;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.InternalServerErrorException;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Path;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
@@ -105,43 +109,51 @@ public class Application implements Interface {
 	}
 
 	@Override
-	public ArchiveTask task(String id) {
+	public Response task(String id) {
 		if (id == null || id.isEmpty())
-			throw new WebApplicationException(BAD_REQUEST);
-		return tasks.describeTask(id, null);
+			throw new BadRequestException("bad id");
+		try {
+			return ok(tasks.describeTask(id, null), JSON).build();
+		} catch (NotFoundException e) {
+			/*
+			 * This case is normal enough that we don't want an exception in the
+			 * log.
+			 */
+			return Response.status(NOT_FOUND).build();
+		}
 	}
 
 	@Override
 	@RolesAllowed("ROLE_USER")
 	public Response createTask(ArchiveTask proposedTask, UriInfo ui) {
 		if (proposedTask == null)
-			throw new WebApplicationException("bad task", BAD_REQUEST);
+			throw new BadRequestException("bad task");
 
 		User u0 = proposedTask.submitter;
 		if (u0 == null)
-			throw new WebApplicationException("no user specified", BAD_REQUEST);
+			throw new BadRequestException("no user specified");
 		if (u0.url == null)
-			throw new WebApplicationException("no user url", BAD_REQUEST);
+			throw new BadRequestException("no user url");
 		User user = seek.getUser(u0.url);
 
 		Assay a0 = proposedTask.assay;
 		Study s0 = proposedTask.study;
 		if (a0 == null && s0 == null)
-			throw new WebApplicationException("no assay or study specified", BAD_REQUEST);
+			throw new BadRequestException("no assay or study specified");
 		if (a0 != null && s0 != null)
-			throw new WebApplicationException("must not specify both assay and study", BAD_REQUEST);
+			throw new BadRequestException("must not specify both assay and study");
 		if (a0 != null && a0.url == null)
-			throw new WebApplicationException("no assay url", BAD_REQUEST);
+			throw new BadRequestException("no assay url");
 		if (s0 != null && s0.url == null)
-			throw new WebApplicationException("no study url", BAD_REQUEST);
+			throw new BadRequestException("no study url");
 
 		List<Directory> d0 = proposedTask.directory;
 		if (d0 == null)
-			throw new WebApplicationException("bad directory", BAD_REQUEST);
+			throw new BadRequestException("bad directory");
 		List<String> dirs = lister.getSubdirectories(d0);
 		if (dirs.isEmpty())
-			throw new WebApplicationException(
-					"need at least one directory to archive", BAD_REQUEST);
+			throw new BadRequestException(
+					"need at least one directory to archive");
 
 		String id;
 		if (a0 != null)
@@ -171,11 +183,11 @@ public class Application implements Interface {
 	@Override
 	public Response deleteTask(String id, UriInfo ui) {
 		if (id == null || id.isEmpty())
-			throw new WebApplicationException(BAD_REQUEST);
+			throw new BadRequestException("bad id");
 		try {
 			tasks.deleteTask(id);
 		} catch (InterruptedException | ExecutionException e) {
-			throw new WebApplicationException("problem when cancelling task", e);
+			throw new InternalServerErrorException("problem when cancelling task", e);
 		}
 		return seeOther(ui.getBaseUriBuilder().path("tasks").build()).build();
 	}

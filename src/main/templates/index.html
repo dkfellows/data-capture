@@ -23,9 +23,8 @@
 		archives to be built of the data</abbr>, and will record in the SynBioChem
 	SEEK where the data has been stored.
 </p>
-
 <p>
-<strong>WARNING:</strong> We may need to reorganise this interface soon in order to correct experimental modelling problems.
+	You can always refresh this page: you will not stop any current processing by doing so.
 </p>
 
 <div id="new" title="New archive task" class="flexcont flexible" style="max-height: 85%">
@@ -39,21 +38,28 @@
 	<div class="newContainer flexcont flexible" style="width: 100%">
 	<form id="newTask" class="flexcont flexible">
 		<fieldset class="flexcont flexible">
+			<!-- ============================================================ -->
 			<label for="users">Responsible Scientist:</label>
 			<select id="users" style="width: 100%">
 				<option selected id="users_initial">Choose...</option>
 			</select>
 			<!-- ============================================================ -->
-			<div class="treescroll flexible" style="max-height: 35em">
-				<label for="experimenttree">SEEK Assay:</label>
-				<div id="experimenttree"></div>
+			<label for="projects">SynBioChem Project:</label>
+			<select id="projects" style="width: 100%">
+				<option selected id="projects_initial">Choose...</option>
+			</select>
 			<!-- ============================================================ -->
-				<label for="dirs">Data Directory:</label>
+			<label for="dirs">Data Directory:</label>
+			<div class="treescroll flexible" style="max-height: 35em">
 				<div id="dirtree"></div>
 			</div>
 			<!-- ============================================================ -->
+			<label for="notes">Notes:</label>
+			<textarea rows="3" cols="50" style="max-height: 5em"></textarea>
+			<!-- ============================================================ -->
 			<input type="submit" tabindex="-1"
 				style="position: absolute; top: -1000px">
+			<!-- ============================================================ -->
 		</fieldset>
 	</form>
 	</div>

@@ -367,10 +367,12 @@ var dirLeaves = {};
 /** Start everything going on page load */
 $(function() {
 	var theUsers = $("#users"), theAssays = $("#assays"), theDirs = $("#dirs");
+	var theProjects = $("#projects"), theNotes = $("#notes");
 
 	theUsers.selectmenu().selectmenu("menuWidget").addClass("overflow");
 	theAssays.selectmenu().selectmenu("menuWidget").addClass("overflow");
 	theDirs.selectmenu().selectmenu("menuWidget").addClass("overflow");
+	theProjects.selectmenu();
 	var dialog, form;
 	function createTask() {
 		var theUser = $("#users option:selected").val();

@@ -43,6 +43,8 @@ public class Application implements Interface {
 	TaskStore tasks;
 	@Autowired
 	DirectoryLister lister;
+	@Autowired
+	InformationSource infoSource;
 	private Log log = LogFactory.getLog(getClass());
 
 	@Override
@@ -64,8 +66,15 @@ public class Application implements Interface {
 	@Override
 	public UserList users() {
 		UserList ul = new UserList();
-		ul.users = new ArrayList<>(seek.getUsers());
+		ul.users = new ArrayList<>(infoSource.getUsers());
 		return ul;
+	}
+
+	@Override
+	public ProjectList projects() {
+		ProjectList pl = new ProjectList();
+		pl.projects = new ArrayList<>(infoSource.getProjects());
+		return pl;
 	}
 
 	@Override

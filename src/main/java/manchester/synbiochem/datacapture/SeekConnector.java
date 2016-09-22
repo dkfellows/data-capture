@@ -184,6 +184,22 @@ public class SeekConnector {
 		}
 	}
 
+	@SuppressWarnings("serial")
+	@XmlRootElement(name = "project")
+	@XmlType(propOrder = {})
+	public static class Project implements Serializable {
+		@XmlElement
+		public String name;
+		@XmlElement
+		public Integer id;
+		@XmlElement(required = true)
+		@XmlSchemaType(name = "anyUri")
+		public URL url;
+
+		public Project() {
+		}
+	}
+
 	@Value("${seek.project:5}")
 	private Integer projectID;
 	@Value("${seek.institution:0}")

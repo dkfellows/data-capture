@@ -45,6 +45,11 @@ public interface Interface {
 	UserList users();
 
 	@GET
+	@Path("projects")
+	@Produces(JSON)
+	ProjectList projects();
+
+	@GET
 	@Path("studies")
 	@Produces(JSON)
 	StudyList studies();
@@ -113,6 +118,13 @@ public interface Interface {
 		public List<SeekConnector.Assay> assays = new ArrayList<>();
 	}
 
+	@XmlRootElement(name = "projects")
+	@XmlSeeAlso(SeekConnector.Project.class)
+	class ProjectList {
+		@XmlElement(name = "project")
+		public List<SeekConnector.Project> projects = new ArrayList<>();
+	}
+
 	@XmlRootElement(name = "directories")
 	class DirectoryList {
 		@XmlElement(name = "directory")
@@ -178,6 +190,12 @@ public interface Interface {
 		public List<Directory> directory = new ArrayList<>();
 		@XmlElement(name = "created-asset")
 		public URI createdAsset;
+		@XmlElement(name = "created-openbis-experiment")
+		public URI createdExperiment;
+		@XmlElement
+		public SeekConnector.Project project;
+		@XmlElement
+		public String notes;
 	}
 }
 

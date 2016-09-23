@@ -22,6 +22,7 @@ import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
+import manchester.synbiochem.datacapture.SeekConnector.Project;
 import manchester.synbiochem.datacapture.SeekConnector.Study;
 import manchester.synbiochem.datacapture.SeekConnector.User;
 
@@ -164,29 +165,39 @@ public class Application implements Interface {
 			throw new BadRequestException(
 					"need at least one directory to archive");
 
+		Project project = proposedTask.project;
+		if (project.name == null || project.name.isEmpty())
+			throw new BadRequestException("project name must be non-empty");
+
+		String notes = proposedTask.notes;
+		if (notes == null)
+			notes = "";
+
 		String id;
 		if (a0 != null)
-			id = createTask(user, a0, dirs);
+			id = createTask(user, a0, dirs, project, notes.trim());
 		else
-			id = createTask(user, s0, dirs);
+			id = createTask(user, s0, dirs, project, notes.trim());
 		log.info("created task " + id + " to archive " + dirs.get(0));
 		UriBuilder ub = ui.getAbsolutePathBuilder().path("{id}");
 		return created(ub.build(id)).entity(tasks.describeTask(id, ub))
 				.type("application/json").build();
 	}
 
-	private String createTask(User user, Assay a0, List<String> dirs) {
+	private String createTask(User user, Assay a0, List<String> dirs,
+			Project project, String notes) {
 		Assay assay = seek.getAssay(a0.url);
 		log.info("creating task for " + user.name + " to work on assay "
 				+ assay.url + " (" + assay.name + ")");
-		return tasks.newTask(user, assay, dirs);
+		return tasks.newTask(user, assay, dirs, project.name, notes);
 	}
 
-	private String createTask(User user, Study s0, List<String> dirs) {
+	private String createTask(User user, Study s0, List<String> dirs,
+			Project project, String notes) {
 		Study study = seek.getStudy(s0.url);
 		log.info("creating task for " + user.name + " to work on study "
 				+ study.url + " (" + study.name + ")");
-		return tasks.newTask(user, study, dirs);
+		return tasks.newTask(user, study, dirs, project.name, notes);
 	}
 
 	@Override

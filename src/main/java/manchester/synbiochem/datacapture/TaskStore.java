@@ -133,14 +133,14 @@ public class TaskStore {
 	}
 
 	public String newTask(SeekConnector.User user, SeekConnector.Assay assay,
-			List<String> dirs) {
+			List<String> dirs, String project, String notes) {
 		if (user == null || user.url == null)
 			throw new IllegalArgumentException("need a user with a URL");
 		if (assay == null || assay.url == null)
 			throw new IllegalArgumentException("need an assay with a URL");
 		File d = existingDirectory(dirs);
 
-		MetadataRecorder md = new MetadataRecorder(tika);
+		MetadataRecorder md = new MetadataRecorder(tika, project, notes);
 		md.setUser(user);
 		md.setExperiment(assay);
 		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot, d,
@@ -148,14 +148,14 @@ public class TaskStore {
 		return storeTask(d, md, at, submit(at));
 	}
 
-	public String newTask(User user, Study study, List<String> dirs) {
+	public String newTask(User user, Study study, List<String> dirs, String project, String notes) {
 		if (user == null || user.url == null)
 			throw new IllegalArgumentException("need a user with a URL");
 		if (study == null || study.url == null)
 			throw new IllegalArgumentException("need a study with a URL");
 		File d = existingDirectory(dirs);
 
-		MetadataRecorder md = new MetadataRecorder(tika);
+		MetadataRecorder md = new MetadataRecorder(tika, project, notes);
 		md.setUser(user);
 		md.setExperiment(study);
 		ArchiverTask at = new StudyCreatingArchiverTask(study, md, archRoot,

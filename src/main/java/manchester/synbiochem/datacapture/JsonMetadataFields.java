@@ -63,6 +63,8 @@ public interface JsonMetadataFields {
 	 * The location for the file's metadata in SEEK.
 	 */
 	public static final String FILE_SEEK_URL = "seekurl";
+	public static final String FILE_PROJECT = "project";
+	public static final String FILE_NOTES = "notes";
 	/** Key for the list of files in the overall record. */
 	public static final String FILES = "files";
 	/** Key for the ID for the overall record. */

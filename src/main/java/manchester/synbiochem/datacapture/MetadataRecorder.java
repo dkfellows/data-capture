@@ -12,8 +12,10 @@ import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_CIFS;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_MD5;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_MIME;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_NAME;
+import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_NOTES;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_OPENBIS_URL;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_ORIGIN;
+import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_PROJECT;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_SEEK_URL;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_SHA1;
 import static manchester.synbiochem.datacapture.JsonMetadataFields.FILE_SIZE;
@@ -74,11 +76,14 @@ public class MetadataRecorder {
 	private JSONObject openbisExperiment;
 	private Object openbisExperimentID;
 	private Object openbisExperimentURL;
+	private String project;
+	private String notes;
 	private final Map<String, String> filetypeMap = new HashMap<>();
 
 	private class CSVRow implements Comparable<CSVRow> {
 		CSVRow(File archived, File source, String sha1, String md5,
-				String mimetype, long size, Date time, String cifs, URI openbis) {
+				String mimetype, long size, Date time, String cifs,
+				URI openbis) {
 			this.archived = archived.getAbsolutePath();
 			this.source = source.getAbsolutePath();
 			this.sha1 = sha1;
@@ -98,7 +103,7 @@ public class MetadataRecorder {
 			addRecord(getExperiment().url, getUser().url, openbisExperimentID,
 					openbisExperimentURL, timestamp, archived, source, sha1,
 					md5, mimetype, size, ISO8601.format(time), cifs, seek,
-					openbis);
+					project, notes, openbis);
 		}
 
 		@Override
@@ -110,7 +115,7 @@ public class MetadataRecorder {
 		}
 	}
 
-	public MetadataRecorder(Tika tika) {
+	public MetadataRecorder(Tika tika, String project, String notes) {
 		ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		ISO8601.setTimeZone(UTC);
 		this.tika = tika;
@@ -121,6 +126,8 @@ public class MetadataRecorder {
 		o.put(TIME, "");
 		o.put(USER, NULL);
 		o.put(EXPERIMENT, NULL);
+		o.put(FILE_PROJECT, project);
+		o.put(FILE_NOTES, notes);
 		files = new HashMap<>();
 		csvBuffer = new StringBuilder();
 		try {
@@ -130,8 +137,8 @@ public class MetadataRecorder {
 		}
 		addRecord(EXPERIMENT, USER, EXP_OPENBIS_ID, EXP_OPENBIS_URL, TIME,
 				FILE_ARCHIVE, FILE_ORIGIN, FILE_SHA1, FILE_MD5, FILE_MIME,
-				FILE_SIZE, FILE_TIME, FILE_CIFS, FILE_SEEK_URL,
-				FILE_OPENBIS_URL);
+				FILE_SIZE, FILE_TIME, FILE_CIFS, FILE_SEEK_URL, FILE_PROJECT,
+				FILE_NOTES, FILE_OPENBIS_URL);
 	}
 
 	/**
@@ -139,10 +146,11 @@ public class MetadataRecorder {
 	 */
 	private void addRecord(Object a1, Object a2, Object a3, Object a4,
 			Object a5, Object a6, Object a7, Object a8, Object a9, Object a10,
-			Object a11, Object a12, Object a13, Object a14, Object a15) {
+			Object a11, Object a12, Object a13, Object a14, Object a15,
+			Object a16, Object a17) {
 		try {
 			csv.printRecord(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12,
-					a13, a14, a15);
+					a13, a14, a15, a16, a17);
 		} catch (IOException e) {
 			throw new RuntimeException("unexpected IO failure", e);
 		}
@@ -230,6 +238,8 @@ public class MetadataRecorder {
 	}
 
 	public String getProjectName() {
+		if (project != null)
+			return project;
 		if (assay != null)
 			return assay.projectName;
 		if (study != null)

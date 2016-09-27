@@ -7,6 +7,8 @@ import static javax.ws.rs.core.Response.seeOther;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static manchester.synbiochem.datacapture.Constants.JSON;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -18,6 +20,7 @@ import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
@@ -96,8 +99,21 @@ public class Application implements Interface {
 	public DirectoryList dirs() {
 		DirectoryList dl = new DirectoryList();
 		for (String name : lister.getSubdirectories())
-			dl.dirs.add(new Directory(name));
+			dl.dirs.add(new DirectoryEntry(name));
 		return dl;
+	}
+
+	@Override
+	public Response dirs(String root, UriInfo ui) {
+		UriBuilder ub = ui.getBaseUriBuilder().path("list");
+		try {
+			DirectoryList dl = new DirectoryList();
+			for (File f : lister.getListing(root))
+				dl.dirs.add(new DirectoryEntry(f, ub));
+			return Response.ok(dl, JSON).build();
+		} catch (IOException e) {
+			return Response.status(Status.NOT_FOUND).type("text/plain").entity(e.getMessage()).build();
+		}
 	}
 
 	private static final Comparator<ArchiveTask> taskComparator = new Comparator<ArchiveTask>() {
@@ -157,7 +173,7 @@ public class Application implements Interface {
 		if (s0 != null && s0.url == null)
 			throw new BadRequestException("no study url");
 
-		List<Directory> d0 = proposedTask.directory;
+		List<DirectoryEntry> d0 = proposedTask.directory;
 		if (d0 == null)
 			throw new BadRequestException("bad directory");
 		List<String> dirs = lister.getSubdirectories(d0);

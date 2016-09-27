@@ -224,7 +224,7 @@ public class TaskStore {
 		result.assay = task.getExperiment();
 		result.directory = new ArrayList<>();
 		for (String d : task.getDirectories())
-			result.directory.add(new Interface.Directory(d));
+			result.directory.add(new Interface.DirectoryEntry(d));
 		synchronized (ISO8601) {
 			Date t = task.getStart();
 			if (t != null)

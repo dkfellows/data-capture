@@ -20,6 +20,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
@@ -60,9 +61,14 @@ public interface Interface {
 	AssayList assays();
 
 	@GET
-	@Path("directories")
+	@Path("dir")
 	@Produces(JSON)
 	DirectoryList dirs();
+
+	@GET
+	@Path("dir/{dir:.+}")
+	@Produces(JSON)
+	Response dirs(@PathParam("dir") String dir, @Context UriInfo ui);
 
 	@GET
 	@Path("tasks")
@@ -127,26 +133,45 @@ public interface Interface {
 
 	@XmlRootElement(name = "directories")
 	class DirectoryList {
-		@XmlElement(name = "directory")
-		public List<Directory> dirs = new ArrayList<>();
+		@XmlElement(name = "directory-entry")
+		public List<DirectoryEntry> dirs = new ArrayList<>();
 	}
 
 	@XmlType
-	class Directory {
+	class DirectoryEntry {
 		private static final SimpleDateFormat ISO8601;
 		static {
 			ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 			ISO8601.setTimeZone(TimeZone.getTimeZone("UTC"));
 		}
-		public Directory() {}
-		Directory(String d) {
+		public DirectoryEntry() {}
+		DirectoryEntry(String d) {
 			name = d;
 			File f = new File(d);
-			if (f.exists() && f.isDirectory())
+			if (f.exists()) {
 				synchronized(ISO8601) {
 					modTime = ISO8601.format(new Date(f.lastModified()));
 				}
+				if (f.isDirectory())
+					type = "directory";
+				else if (f.isFile())
+					type = "file";
+			}
 			id = "dir_" + md5Hex(d);
+		}
+		DirectoryEntry(File f, UriBuilder ub) {
+			name = f.getAbsolutePath();
+			if (f.exists()) {
+				synchronized(ISO8601) {
+					modTime = ISO8601.format(new Date(f.lastModified()));
+				}
+				if (f.isDirectory())
+					type = "directory";
+				else if (f.isFile())
+					type = "file";
+			}
+			id = "dir_" + md5Hex(name);
+			uri = ub.path(name).build().toString();
 		}
 		@XmlElement(name = "modification-time")
 		public String modTime;
@@ -154,6 +179,10 @@ public interface Interface {
 		public String name;
 		@XmlAttribute
 		public String id;
+		@XmlElement
+		public String type;
+		@XmlAttribute
+		public String uri;
 	}
 
 	@XmlRootElement(name = "tasks")
@@ -187,7 +216,7 @@ public interface Interface {
 		@XmlElement
 		public SeekConnector.Study study;
 		@XmlElement
-		public List<Directory> directory = new ArrayList<>();
+		public List<DirectoryEntry> directory = new ArrayList<>();
 		@XmlElement(name = "created-asset")
 		public URI createdAsset;
 		@XmlElement(name = "created-openbis-experiment")

@@ -11,6 +11,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
 
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -29,11 +30,16 @@ import javax.xml.bind.annotation.XmlSchemaType;
 import javax.xml.bind.annotation.XmlSeeAlso;
 import javax.xml.bind.annotation.XmlType;
 
+import manchester.synbiochem.datacapture.SeekConnector.Assay;
+import manchester.synbiochem.datacapture.SeekConnector.Project;
+import manchester.synbiochem.datacapture.SeekConnector.Study;
+import manchester.synbiochem.datacapture.SeekConnector.User;
+
 public interface Interface {
 	@GET
 	@Path("/")
 	@Produces("text/plain")
-	String status();
+	String getStatus();
 
 	@GET
 	@Path("/")
@@ -171,7 +177,32 @@ public interface Interface {
 					type = "file";
 			}
 			id = "dir_" + md5Hex(name);
-			uri = ub.path(name).build().toString();
+			uri = ub.clone().path("{name}").build(f.getName()).toString();
+		}
+		DirectoryEntry(File f, File base, UriBuilder ub) {
+			name = f.getAbsolutePath();
+			if (f.exists()) {
+				synchronized(ISO8601) {
+					modTime = ISO8601.format(new Date(f.lastModified()));
+				}
+				if (f.isDirectory())
+					type = "directory";
+				else if (f.isFile())
+					type = "file";
+			}
+			id = "dir_" + md5Hex(name);
+			// Build the URI correctly. THIS IS SNEAKY CODE!
+			String nm = name.substring(base.getAbsolutePath().length()
+					- base.getName().length());
+			String[] bits = nm.split("/");
+			StringBuilder pathPattern = new StringBuilder();
+			String sep = "";
+			for (int i = 0; i < bits.length; i++) {
+				pathPattern.append(sep).append("{bit").append(i).append("}");
+				sep = "/";
+			}
+			uri = ub.clone().path(pathPattern.toString())
+					.build((Object[]) bits).toString();
 		}
 		@XmlElement(name = "modification-time")
 		public String modTime;
@@ -225,6 +256,29 @@ public interface Interface {
 		public SeekConnector.Project project;
 		@XmlElement
 		public String notes;
+
+		void validate() throws BadRequestException {
+			if (submitter == null)
+				throw new BadRequestException("no user specified");
+			if (submitter.url == null)
+				throw new BadRequestException("no user url");
+
+			if (assay == null && study == null)
+				throw new BadRequestException("no assay or study specified");
+			if (assay != null && study != null)
+				throw new BadRequestException("must not specify both assay and study");
+			if (assay != null && assay.url == null)
+				throw new BadRequestException("no assay url");
+			if (study != null && study.url == null)
+				throw new BadRequestException("no study url");
+
+			if (directory == null)
+				throw new BadRequestException("bad directory");
+
+			if (project != null
+					&& (project.name == null || project.name.isEmpty()))
+				throw new BadRequestException("project name must be non-empty");
+		}
 	}
 }
 

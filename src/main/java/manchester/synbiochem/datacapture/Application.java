@@ -4,6 +4,7 @@ import static java.util.Collections.sort;
 import static javax.ws.rs.core.Response.created;
 import static javax.ws.rs.core.Response.ok;
 import static javax.ws.rs.core.Response.seeOther;
+import static javax.ws.rs.core.Response.status;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static manchester.synbiochem.datacapture.Constants.JSON;
 
@@ -52,7 +53,7 @@ public class Application implements Interface {
 	private Log log = LogFactory.getLog(getClass());
 
 	@Override
-	public String status() {
+	public String getStatus() {
 		return "OK";
 	}
 
@@ -104,16 +105,24 @@ public class Application implements Interface {
 	}
 
 	@Override
-	public Response dirs(String root, UriInfo ui) {
+	public Response dirs(String path, UriInfo ui) {
+		String[] bits = path.replaceFirst("^/+", "").split("/");
 		UriBuilder ub = ui.getBaseUriBuilder().path("list");
-		try {
-			DirectoryList dl = new DirectoryList();
-			for (File f : lister.getListing(root))
-				dl.dirs.add(new DirectoryEntry(f, ub));
-			return Response.ok(dl, JSON).build();
-		} catch (IOException e) {
-			return Response.status(Status.NOT_FOUND).type("text/plain").entity(e.getMessage()).build();
+		DirectoryList dl = new DirectoryList();
+		if (bits == null || bits.length == 0) {
+			for (File root : lister.getRoots())
+				dl.dirs.add(new DirectoryEntry(root, ub));
+		} else {
+			try {
+				File base = lister.getRoot(bits[0]);
+				for (File f : lister.getListing(base, bits))
+					dl.dirs.add(new DirectoryEntry(f, base, ub));
+			} catch (IOException e) {
+				return status(NOT_FOUND).type("text/plain")
+						.entity(e.getMessage()).build();
+			}
 		}
+		return ok(dl, JSON).build();
 	}
 
 	private static final Comparator<ArchiveTask> taskComparator = new Comparator<ArchiveTask>() {
@@ -145,7 +154,7 @@ public class Application implements Interface {
 			 * This case is normal enough that we don't want an exception in the
 			 * log.
 			 */
-			return Response.status(NOT_FOUND).build();
+			return status(NOT_FOUND).build();
 		}
 	}
 
@@ -154,46 +163,26 @@ public class Application implements Interface {
 	public Response createTask(ArchiveTask proposedTask, UriInfo ui) {
 		if (proposedTask == null)
 			throw new BadRequestException("bad task");
+		proposedTask.validate();
 
-		User u0 = proposedTask.submitter;
-		if (u0 == null)
-			throw new BadRequestException("no user specified");
-		if (u0.url == null)
-			throw new BadRequestException("no user url");
-		User user = seek.getUser(u0.url);
+		User user = seek.getUser(proposedTask.submitter.url);
 
-		Assay a0 = proposedTask.assay;
-		Study s0 = proposedTask.study;
-		if (a0 == null && s0 == null)
-			throw new BadRequestException("no assay or study specified");
-		if (a0 != null && s0 != null)
-			throw new BadRequestException("must not specify both assay and study");
-		if (a0 != null && a0.url == null)
-			throw new BadRequestException("no assay url");
-		if (s0 != null && s0.url == null)
-			throw new BadRequestException("no study url");
-
-		List<DirectoryEntry> d0 = proposedTask.directory;
-		if (d0 == null)
-			throw new BadRequestException("bad directory");
-		List<String> dirs = lister.getSubdirectories(d0);
+		List<String> dirs = lister.getSubdirectories(proposedTask.directory);
 		if (dirs.isEmpty())
 			throw new BadRequestException(
 					"need at least one directory to archive");
 
 		Project project = proposedTask.project;
-		if (project.name == null || project.name.isEmpty())
-			throw new BadRequestException("project name must be non-empty");
 
 		String notes = proposedTask.notes;
 		if (notes == null)
 			notes = "";
 
 		String id;
-		if (a0 != null)
-			id = createTask(user, a0, dirs, project, notes.trim());
+		if (proposedTask.assay != null)
+			id = createTask(user, proposedTask.assay, dirs, project, notes.trim());
 		else
-			id = createTask(user, s0, dirs, project, notes.trim());
+			id = createTask(user, proposedTask.study, dirs, project, notes.trim());
 		log.info("created task " + id + " to archive " + dirs.get(0));
 		UriBuilder ub = ui.getAbsolutePathBuilder().path("{id}");
 		return created(ub.build(id)).entity(tasks.describeTask(id, ub))

@@ -1,6 +1,7 @@
 package manchester.synbiochem.datacapture;
 
 import static java.lang.System.currentTimeMillis;
+import static java.util.Collections.unmodifiableList;
 import static org.apache.commons.logging.LogFactory.getLog;
 
 import java.io.File;
@@ -89,10 +90,8 @@ public class DirectoryLister {
 		return subs;
 	}
 
-	public List<File> getListing(String path) throws IOException {
-		String[] bits = path.replaceFirst("^/+", "").split("/");
-		File dir = walkPath(bits, getRoot(bits[0]));
-
+	public List<File> getListing(File root, String[] bits) throws IOException {
+		File dir = walkPath(bits, root);
 		List<File> result = new ArrayList<>();
 		// Need to filter the results
 		for (File bit : dir.listFiles()) {
@@ -103,8 +102,12 @@ public class DirectoryLister {
 		return result;
 	}
 
+	public List<File> getRoots() {
+		return unmodifiableList(roots);
+	}
+
 	/** Look up the root with the given name. Assumes all roots have differing final components. */
-	private File getRoot(String rootname) throws IOException {
+	public File getRoot(String rootname) throws IOException {
 		for (File root : roots)
 			if (root.getName().equals(rootname))
 				return root;

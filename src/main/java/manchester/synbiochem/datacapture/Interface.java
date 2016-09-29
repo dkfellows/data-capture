@@ -36,64 +36,74 @@ import manchester.synbiochem.datacapture.SeekConnector.Study;
 import manchester.synbiochem.datacapture.SeekConnector.User;
 
 public interface Interface {
+	/** Common elements of API URI path names. */
+	interface Paths {
+		String ROOT = "/";
+		String USERS = "users";
+		String PROJECTS = "projects";
+		String STUDIES = "studies";
+		String ASSAYS = "assays";
+		String DIR = "dir";
+		String TASKS = "tasks";
+	}
 	@GET
-	@Path("/")
+	@Path(Paths.ROOT)
 	@Produces("text/plain")
 	String getStatus();
 
 	@GET
-	@Path("/")
+	@Path(Paths.ROOT)
 	@Produces(JSON)
 	Description describe(@Context UriInfo ui);
 
 	@GET
-	@Path("users")
+	@Path(Paths.USERS)
 	@Produces(JSON)
 	UserList users();
 
 	@GET
-	@Path("projects")
+	@Path(Paths.PROJECTS)
 	@Produces(JSON)
 	ProjectList projects();
 
 	@GET
-	@Path("studies")
+	@Path(Paths.STUDIES)
 	@Produces(JSON)
 	StudyList studies();
 	
 	@GET
-	@Path("assays")
+	@Path(Paths.ASSAYS)
 	@Produces(JSON)
 	AssayList assays();
 
 	@GET
-	@Path("dir")
+	@Path(Paths.DIR)
 	@Produces(JSON)
-	DirectoryList dirs();
+	DirectoryList dirs(@Context UriInfo ui);
 
 	@GET
-	@Path("dir/{dir:.+}")
+	@Path(Paths.DIR + "/{dir:.+}")
 	@Produces(JSON)
 	Response dirs(@PathParam("dir") String dir, @Context UriInfo ui);
 
 	@GET
-	@Path("tasks")
+	@Path(Paths.TASKS)
 	@Produces(JSON)
 	ArchiveTaskList tasks(@Context UriInfo ui);
 
 	@GET
-	@Path("tasks/{id}")
+	@Path(Paths.TASKS + "/{id}")
 	@Produces(JSON)
 	Response task(@PathParam("id") String id);
 
 	@POST
-	@Path("tasks")
+	@Path(Paths.TASKS)
 	@Consumes(JSON)
 	@Produces(JSON)
 	Response createTask(ArchiveTask proposedTask, @Context UriInfo ui);
 
 	@DELETE
-	@Path("tasks/{id}")
+	@Path(Paths.TASKS + "/{id}")
 	@Produces(JSON)
 	Response deleteTask(@PathParam("id") String id, @Context UriInfo ui);
 

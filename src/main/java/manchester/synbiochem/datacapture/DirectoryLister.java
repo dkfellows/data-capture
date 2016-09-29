@@ -93,8 +93,11 @@ public class DirectoryLister {
 	public List<File> getListing(File root, String[] bits) throws IOException {
 		File dir = walkPath(bits, root);
 		List<File> result = new ArrayList<>();
+		File[] list = dir.listFiles();
+		if (list == null)
+			throw new IOException("not a directory");
 		// Need to filter the results
-		for (File bit : dir.listFiles()) {
+		for (File bit : list) {
 			String name = bit.getName();
 			if (!(name.equals(".") || name.equals("..")))
 				result.add(bit);

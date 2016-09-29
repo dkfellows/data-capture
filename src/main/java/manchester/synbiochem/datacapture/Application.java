@@ -97,17 +97,18 @@ public class Application implements Interface {
 	}
 
 	@Override
-	public DirectoryList dirs() {
+	public DirectoryList dirs(UriInfo ui) {
+		UriBuilder ub = ui.getBaseUriBuilder().path(Paths.DIR);
 		DirectoryList dl = new DirectoryList();
-		for (String name : lister.getSubdirectories())
-			dl.dirs.add(new DirectoryEntry(name));
+		for (File root : lister.getRoots())
+			dl.dirs.add(new DirectoryEntry(root, ub));
 		return dl;
 	}
 
 	@Override
 	public Response dirs(String path, UriInfo ui) {
 		String[] bits = path.replaceFirst("^/+", "").split("/");
-		UriBuilder ub = ui.getBaseUriBuilder().path("list");
+		UriBuilder ub = ui.getBaseUriBuilder().path(Paths.DIR);
 		DirectoryList dl = new DirectoryList();
 		if (bits == null || bits.length == 0) {
 			for (File root : lister.getRoots())

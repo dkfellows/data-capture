@@ -162,8 +162,8 @@ public interface Interface {
 		}
 		public DirectoryEntry() {}
 		DirectoryEntry(String d) {
-			name = d;
 			File f = new File(d);
+			name = f.getName();
 			if (f.exists()) {
 				synchronized(ISO8601) {
 					modTime = ISO8601.format(new Date(f.lastModified()));
@@ -173,10 +173,10 @@ public interface Interface {
 				else if (f.isFile())
 					type = "file";
 			}
-			id = "dir_" + md5Hex(d);
+			id = "dir_" + md5Hex(f.getAbsolutePath());
 		}
 		DirectoryEntry(File f, UriBuilder ub) {
-			name = f.getAbsolutePath();
+			name = f.getName();
 			if (f.exists()) {
 				synchronized(ISO8601) {
 					modTime = ISO8601.format(new Date(f.lastModified()));
@@ -186,11 +186,12 @@ public interface Interface {
 				else if (f.isFile())
 					type = "file";
 			}
-			id = "dir_" + md5Hex(name);
+			id = "dir_" + md5Hex(f.getAbsolutePath());
 			uri = ub.clone().path("{name}").build(f.getName()).toString();
 		}
 		DirectoryEntry(File f, File base, UriBuilder ub) {
-			name = f.getAbsolutePath();
+			name = f.getName();
+			String path = f.getAbsolutePath();
 			if (f.exists()) {
 				synchronized(ISO8601) {
 					modTime = ISO8601.format(new Date(f.lastModified()));
@@ -200,16 +201,16 @@ public interface Interface {
 				else if (f.isFile())
 					type = "file";
 			}
-			id = "dir_" + md5Hex(name);
+			id = "dir_" + md5Hex(path);
 			// Build the URI correctly. THIS IS SNEAKY CODE!
-			String nm = name.substring(base.getAbsolutePath().length()
-					- base.getName().length());
-			String[] bits = nm.split("/");
+			String nm = path.substring(
+					base.getAbsolutePath().length() - base.getName().length());
+			String[] bits = nm.split(File.separator); // assume separator length = 1
 			StringBuilder pathPattern = new StringBuilder();
 			String sep = "";
 			for (int i = 0; i < bits.length; i++) {
 				pathPattern.append(sep).append("{bit").append(i).append("}");
-				sep = "/";
+				sep = "/"; // URL separator, not file separator
 			}
 			uri = ub.clone().path(pathPattern.toString())
 					.build((Object[]) bits).toString();
@@ -218,11 +219,11 @@ public interface Interface {
 		public String modTime;
 		@XmlElement
 		public String name;
-		@XmlAttribute
+		@XmlElement
 		public String id;
 		@XmlElement
 		public String type;
-		@XmlAttribute
+		@XmlElement
 		public String uri;
 	}
 

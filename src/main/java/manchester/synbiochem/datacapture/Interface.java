@@ -110,31 +110,31 @@ public interface Interface {
 	}
 
 	@XmlRootElement(name = "users")
-	@XmlSeeAlso(SeekConnector.User.class)
+	@XmlSeeAlso(User.class)
 	class UserList {
 		@XmlElement(name = "user")
-		public List<SeekConnector.User> users = new ArrayList<>();
+		public List<User> users = new ArrayList<>();
 	}
 
 	@XmlRootElement(name = "studies")
-	@XmlSeeAlso(SeekConnector.Study.class)
+	@XmlSeeAlso(Study.class)
 	class StudyList {
 		@XmlElement(name = "study")
-		public List<SeekConnector.Study> studies = new ArrayList<>();
+		public List<Study> studies = new ArrayList<>();
 	}
 
 	@XmlRootElement(name = "assays")
-	@XmlSeeAlso(SeekConnector.Assay.class)
+	@XmlSeeAlso(Assay.class)
 	class AssayList {
 		@XmlElement(name = "assay")
-		public List<SeekConnector.Assay> assays = new ArrayList<>();
+		public List<Assay> assays = new ArrayList<>();
 	}
 
 	@XmlRootElement(name = "projects")
-	@XmlSeeAlso(SeekConnector.Project.class)
+	@XmlSeeAlso(Project.class)
 	class ProjectList {
 		@XmlElement(name = "project")
-		public List<SeekConnector.Project> projects = new ArrayList<>();
+		public List<Project> projects = new ArrayList<>();
 	}
 
 	@XmlRootElement(name = "directories")

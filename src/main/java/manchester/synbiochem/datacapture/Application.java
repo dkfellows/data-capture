@@ -138,7 +138,14 @@ public class Application implements Interface {
 		ArchiveTaskList atl = new ArchiveTaskList();
 		atl.tasks = new ArrayList<>();
 		for (String id : tasks.list())
-			atl.tasks.add(tasks.describeTask(id, ub));
+			try {
+				atl.tasks.add(tasks.describeTask(id, ub));
+			} catch (NotFoundException e) {
+				/*
+				 * Ignore tasks that have just been squelched; we can pretend
+				 * they just don't exist for our purposes.
+				 */
+			}
 		sort(atl.tasks, taskComparator);
 		return atl;
 	}
@@ -172,17 +179,18 @@ public class Application implements Interface {
 			throw new BadRequestException(
 					"need at least one directory to archive");
 
-		Project project = proposedTask.project;
-
 		String notes = proposedTask.notes;
 		if (notes == null)
 			notes = "";
+		else
+			notes = notes.trim();
 
 		String id;
 		if (proposedTask.assay != null)
-			id = createTask(user, proposedTask.assay, dirs, project, notes.trim());
+			id = createTask(user, proposedTask.assay, dirs, proposedTask.project, notes);
 		else
-			id = createTask(user, proposedTask.study, dirs, project, notes.trim());
+			id = createTask(user, proposedTask.study, dirs, proposedTask.project, notes);
+
 		log.info("created task " + id + " to archive " + dirs.get(0));
 		UriBuilder ub = ui.getAbsolutePathBuilder().path("{id}");
 		return created(ub.build(id)).entity(tasks.describeTask(id, ub))
@@ -213,6 +221,9 @@ public class Application implements Interface {
 			tasks.deleteTask(id);
 		} catch (InterruptedException | ExecutionException e) {
 			throw new InternalServerErrorException("problem when cancelling task", e);
+		} catch (NotFoundException e) {
+			// No exception logging; it's just already gone
+			return status(NOT_FOUND).build();
 		}
 		return seeOther(ui.getBaseUriBuilder().path("tasks").build()).build();
 	}

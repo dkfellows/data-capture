@@ -1,8 +1,8 @@
 var projectIcon = "images/project.png";
-var investigationIcon = "images/investigation.png";
-var studyIcon = "images/study.png";
-var assayIcon = "images/assay.png";
-var userIcon = "images/user.png";
+//var investigationIcon = "images/investigation.png";
+//var studyIcon = "images/study.png";
+//var assayIcon = "images/assay.png";
+//var userIcon = "images/user.png";
 var instrumentIcon = "images/instrument.png";
 /** Unbreak what the JSON processing does with arrays */
 function dejson(val) {
@@ -310,41 +310,20 @@ function updateDirs() {
 		sortChildren(context);
 	});
 }
-function getAssayTitle(assay) {
-	return "Project: '" + assay["project-name"] + "' Study: '"
-			+ assay["study-name"] + "' Assay: '" + assay["name"] + "'";
-}
-function updateAssays() {
-	return;
-	var context = $("#assays");
-	getJSON($("#apiAssays")[0].href, function(data) {
-		dejson(data.directory).forEach(function(item) {
-			if ($("#" + item.id).length)
-				return;
-			addOption(context, item.id, item.url, getAssayTitle(item)).
-				attr("sort-key", item.name);
-		});
-		sortChildren(context);
-	});
-}
 
-function createIngestTask(user, assay, study, dir) {
+function createIngestTask(user, project, dir, notes) {
 	var request = {
-		submitter : {
-			url : user
+		"submitter" : {
+			"url" : user
 		},
-		directory : [ {
-			name : dir
-		} ]
+		"directory" : [ {
+			"name" : dir
+		} ],
+		"project" : {
+			"url" : project
+		},
+		"notes" : notes
 	};
-	if (assay !== undefined)
-		request.assay = {
-			url : assay
-		};
-	if (study !== undefined)
-		request.study = {
-			url : study
-		};
 	console.log("Making ingestion request:", request);
 	showSpinner();
 	postJSON($("#apiTasks")[0].href, request, function(data) {
@@ -356,44 +335,53 @@ function createIngestTask(user, assay, study, dir) {
 	});
 }
 
-/** What is the currently-selected study? */
-var theCurrentStudy = undefined;
-/** What is the currently-selected assay? */
-var theCurrentAssay = undefined;
+/** What is the currently-selected project? */
+var theCurrentProject = undefined;
 /** What is the currently-selected directory? */
 var theCurrentDir = undefined;
 /** What nodes in the directory list are usefully selectable? */
 var dirLeaves = {};
 /** Start everything going on page load */
 $(function() {
-	var theUsers = $("#users"), theAssays = $("#assays"), theDirs = $("#dirs");
+	var theUsers = $("#users"), theDirs = $("#dirs");
 	var theProjects = $("#projects"), theNotes = $("#notes");
 
 	theUsers.selectmenu().selectmenu("menuWidget").addClass("overflow");
-	theAssays.selectmenu().selectmenu("menuWidget").addClass("overflow");
-	theDirs.selectmenu().selectmenu("menuWidget").addClass("overflow");
-	theProjects.selectmenu();
+	theProjects.selectmenu().selectmenu("menuWidget").addClass("overflow");
 	var dialog, form;
 	function createTask() {
 		var theUser = $("#users option:selected").val();
-		var theAssay = theCurrentAssay;
-		var theStudy = theCurrentStudy;
+		var theProject = $("#projects option:selected").val();
 		var theDir = theCurrentDir;
-		if (theUser === undefined || (theAssay === undefined && theStudy === undefined) || theDir === undefined) {
-			alert("Please select something in all three fields");
+		var theNotes = $("#notes").val();
+		if (theUser === undefined) {
+			alert("Please select a Responsible Scientist");
 			return false;
 		}
+		if (theProject === undefined) {
+			alert("Please select a SynBioChem Project");
+			return false;
+		}
+		if (theDir === undefined) {
+			alert("Please select a Data Directory to upload from");
+			return false;
+		}
+		if (!theDir.match(/.*\/.*/)) {
+			alert("Please do not upload an entire machine at once; be more specific")
+			return false;
+		}
+		if (theNotes === undefined) {
+			theNotes = "";
+		}
 		dialog.dialog("close");
-		createIngestTask(theUser, theAssay, theStudy, theDir);
+		createIngestTask(theUser, theProject, theDir, theNotes);
 		return true;
 	}
 	function updateEnabled() {
 		var theUser = $("#users option:selected").val();
-		var theStudy = theCurrentStudy;
-		var theAssay = theCurrentAssay;
+		var theProject = $("#projects option:selected").val();
 		var theDir = theCurrentDir;
-		//console.log("u:", theUser, "x:", theAssay||theStudy, "d:", theDir);
-		var disabled = (theUser === undefined || (theStudy === undefined && theAssay === undefined) || theDir === undefined);
+		var disabled = (theUser === undefined || theProject === undefined || theDir === undefined);
 		$("#newOK").button("option", "disabled", disabled);
 	}
 	dialog = $("#new").dialog({
@@ -419,6 +407,7 @@ $(function() {
 	});
 	updateEnabled();
 	theUsers.on("selectmenuchanged", updateEnabled);
+	theProjects.on("selectmenuchanged", updateEnabled);
 	form = dialog.find("form").on("submit", function(event){
 		event.preventDefault();
 		createTask();
@@ -427,7 +416,7 @@ $(function() {
 		dialog.dialog("open");
 	});
 	showSpinner();
-	var retrieveCount = 5;
+	var retrieveCount = 2;
 	function doneRetrieve() {
 		if (--retrieveCount == 0)
 			hideSpinner();
@@ -441,146 +430,32 @@ $(function() {
 		});
 		sortChildren(theUsers);
 	});
-	var retrievedStudies = undefined;
-	var retrievedAssays = undefined;
-	
-	function buildISATree(studies, assays) {
-		var treeData = {};
-		function addTreeNode(key, node) {
-			if (key !== undefined && treeData[key] === undefined) {
-				node.id = key;
-				treeData[key] = node;
-			}
-			if (key !== undefined)
-				return key;
-			return node.parent;
+	getJSON($("#apiProjects")[0].href, function(data) {
+		doneRetrieve();
+		dejson(data.project).forEach(function(item) {
+			addOption(theProjects, item.id, item.url, item.name);
+		});
+	});
+	$("#dirtree").jstree({
+		core : {
+			data : {
+				url: function (node) {
+					return $("#apiDirs")[0].href;
+				},
+				data : function(node) {
+					return {
+						'id' : node.id
+					};
+				}
+			},
+			multiple : false
 		}
-		studies.forEach(function(item){
-			var parentNode = addTreeNode(item["project-url"], {
-				parent: "#",
-				icon: projectIcon,
-				state: { opened: true },
-				text: "Project: " + item["project-name"]
-			});
-			parentNode = addTreeNode(item["investigation-url"], {
-				parent: parentNode,
-				icon: investigationIcon,
-				state: { opened: true },
-				text: "Investigation: " + item["investigation-name"]
-			});
-			parentNode = addTreeNode(item.url, {
-				parent: parentNode,
-				icon: studyIcon,
-				text: "Study: " + item.name
-			});
-		});
-		assays.forEach(function(item) {
-			var parentNode = addTreeNode(item["project-url"], {
-				parent : "#",
-				icon : projectIcon,
-				state : { opened : true },
-				text : "Project: " + item["project-name"]
-			});
-			parentNode = addTreeNode(item["investigation-url"], {
-				parent : parentNode,
-				icon : investigationIcon,
-				state : { opened : true },
-				text : "Investigation: " + item["investigation-name"]
-			});
-			var pn = parentNode;
-			parentNode = addTreeNode(item["study-url"], {
-				parent : parentNode,
-				icon : studyIcon,
-				text : "Study: " + item["study-name"]
-			});
-			if (parentNode !== pn)
-				// Ignore improperly-structured assays
-				addTreeNode(item.url, {
-					parent : parentNode,
-					icon : assayIcon,
-					text : "Assay: " + item.name
-				});
-		});
-		var theData = Object.keys(treeData).map(function(x){return treeData[x];});
-		theData.sort(function(a,b){return a.text<b.text?-1:a.text>b.text?1:0;});
-		$("#experimenttree").jstree({
-			core: { "data": theData, multiple: false }
-		}).on('select_node.jstree', function(node, selection){
-			var sel = selection.selected[0];
-			theCurrentAssay = sel.match(/assays/) ? sel : undefined;
-			theCurrentStudy = sel.match(/studies/) ? sel : undefined;
-			updateEnabled();
-		});
-	}
-	getJSON($("#apiStudies")[0].href, function(data){
-		doneRetrieve();
-		retrievedStudies = dejson(data.study);
-		if (retrievedAssays !== undefined)
-			buildISATree(retrievedStudies, retrievedAssays);
+	}).on('select_node.jstree', function(node, selection) {
+		theCurrentDir = selection.selected[0];
+		updateEnabled();
+	}).on('after_close.jstree', function(node) {
+		console.log("closed node", node);
 	});
-	getJSON($("#apiAssays")[0].href, function(data) {
-		doneRetrieve();
-		retrievedAssays = dejson(data.assay);
-		if (retrievedStudies !== undefined)
-			buildISATree(retrievedStudies, retrievedAssays);
-	});
-	getJSON($("#apiDirs")[0].href, function(data) {
-		doneRetrieve();
-		buildDirTree(dejson(data.directory), $("#dirtree"));
-	});
-
-	function buildDirTree(items, container) {
-		var treeData = {};
-		dirLeaves = {};
-		items.forEach(function(item) {
-			var bits = item.name.split("/");
-			var instrument = bits.slice(0,3).join("/");
-			treeData[instrument] = {
-				id: instrument,
-				parent: "#",
-				icon: instrumentIcon,
-				text: "Instrument: " + bits[2]
-			};
-			if (bits.length == 5) {
-				var person = bits.slice(0,4).join("/");
-				treeData[person] = {
-					id: person,
-					parent: instrument,
-					icon: userIcon,
-					text: "Experimenter: " + bits[3]
-				};
-				treeData[item.name] = {
-					id: item.name,
-					parent: person,
-					text: "Data: " + bits.slice(4).join("/")
-				};
-			} else {
-				treeData[item.name] = {
-					id: item.name,
-					parent: instrument,
-					text: "Data: " + bits.slice(3).join("/")
-				};
-			}
-			dirLeaves[item.name] = true;
-		});
-		treeData = Object.keys(treeData).map(function(x){
-			return treeData[x];
-		});
-		treeData.sort(function(a,b){
-			return a.text<b.text ? -1: a.text>b.text ? 1:0;
-		});
-		container.jstree({
-			core: {"data": treeData, multiple: false}
-		}).on('select_node.jstree', function(node, selection){
-			var sel = selection.selected[0];
-			if (dirLeaves[sel] !== undefined) {
-				theCurrentDir = sel;
-			} else {
-				theCurrentDir = undefined;
-			}
-			updateEnabled();
-		});
-	}
 
 	getJSON($("#apiTasks")[0].href, function(data) {
 		doneRetrieve();
@@ -590,8 +465,6 @@ $(function() {
 		});
 	});
 	setInterval(updateProgress, 10000);
-	//setInterval(updateDirs, 30000)
-	//setInterval(updateAssays, 30000)
 	
 	/*Scrolling magic, courtesy of StackOverflow */
 	$('.treescroll').bind('mousewheel DOMMouseScroll', function(e) {

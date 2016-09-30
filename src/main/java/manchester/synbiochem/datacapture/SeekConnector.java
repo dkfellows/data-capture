@@ -559,7 +559,7 @@ public class SeekConnector {
 		}
 	}
 
-	@PostConstruct
+	//@PostConstruct
 	private void firstFetch() {
 		// write this information into the log, deliberately
 		log.info("there are " + getUsers().size() + " users");

@@ -10,6 +10,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.ws.rs.BadRequestException;
+
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
 import manchester.synbiochem.datacapture.SeekConnector.Project;
 import manchester.synbiochem.datacapture.SeekConnector.Study;
@@ -121,6 +123,14 @@ public class InformationSource {
 		return users;
 	}
 
+	public User getUser(URL url) {
+		String urlstr = url.toString();
+		for (User u : users)
+			if (u.url.toString().equals(urlstr))
+				return u;
+		throw new BadRequestException("no such user recognised");
+	}
+
 	@Value("${projectList}")
 	private void setProjects(String projectList) {
 		List<Project> projects = new ArrayList<>();
@@ -148,5 +158,13 @@ public class InformationSource {
 
 	public List<Project> getProjects() {
 		return projects;
+	}
+
+	public Project getProject(URL url) {
+		String urlstr = url.toString();
+		for (Project p : projects)
+			if (p.url.toString().equals(urlstr))
+				return p;
+		throw new BadRequestException("no such project recognised");
 	}
 }

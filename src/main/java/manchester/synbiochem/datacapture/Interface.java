@@ -14,16 +14,17 @@ import java.util.TimeZone;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
-import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlSchemaType;
@@ -44,6 +45,7 @@ public interface Interface {
 		String STUDIES = "studies";
 		String ASSAYS = "assays";
 		String DIR = "dir";
+		String TREE = "tree";
 		String TASKS = "tasks";
 	}
 	@GET
@@ -85,6 +87,12 @@ public interface Interface {
 	@Path(Paths.DIR + "/{dir:.+}")
 	@Produces(JSON)
 	Response dirs(@PathParam("dir") String dir, @Context UriInfo ui);
+
+	@GET
+	@Path(Paths.TREE)
+	@Produces(JSON)
+	Response tree(@QueryParam("id") @DefaultValue("#") String id,
+			@Context UriInfo ui);
 
 	@GET
 	@Path(Paths.TASKS)
@@ -274,21 +282,13 @@ public interface Interface {
 			if (submitter.url == null)
 				throw new BadRequestException("no user url");
 
-			if (assay == null && study == null)
-				throw new BadRequestException("no assay or study specified");
-			if (assay != null && study != null)
-				throw new BadRequestException("must not specify both assay and study");
-			if (assay != null && assay.url == null)
-				throw new BadRequestException("no assay url");
-			if (study != null && study.url == null)
-				throw new BadRequestException("no study url");
+			if (project == null)
+				throw new BadRequestException("no project specified");
+			if (project.url == null)
+				throw new BadRequestException("no project url");
 
 			if (directory == null)
 				throw new BadRequestException("bad directory");
-
-			if (project != null
-					&& (project.name == null || project.name.isEmpty()))
-				throw new BadRequestException("project name must be non-empty");
 		}
 	}
 }

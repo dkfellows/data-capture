@@ -69,6 +69,7 @@ public class TaskStore {
 	InformationSource infoSource;
 	@Value("${cifs.root}")
 	private URI cifsRoot;
+	@Autowired DirectoryLister lister;
 	private Tika tika = new Tika();
 	private Log log = LogFactory.getLog(getClass());
 	private static final SimpleDateFormat ISO8601;
@@ -130,6 +131,19 @@ public class TaskStore {
 				}
 			}
 		});
+	}
+
+	public String newTask(SeekConnector.User user,
+			SeekConnector.Project project, String dir, String notes)
+			throws IOException {
+		MetadataRecorder md = new MetadataRecorder(tika, project.name, notes);
+		md.setUser(user);
+		String[] bits = dir.split("/");
+		File root = lister.getRoot(bits[0]);
+		File d = lister.getListing(root, bits).get(0).getParentFile();
+		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot, d,
+				seek, ingester, infoSource);
+		return storeTask(d, md, at, submit(at));
 	}
 
 	public String newTask(SeekConnector.User user, SeekConnector.Assay assay,

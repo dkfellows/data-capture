@@ -5,12 +5,14 @@ import static javax.ws.rs.core.Response.created;
 import static javax.ws.rs.core.Response.ok;
 import static javax.ws.rs.core.Response.seeOther;
 import static javax.ws.rs.core.Response.status;
+import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static manchester.synbiochem.datacapture.Constants.JSON;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -32,6 +34,8 @@ import manchester.synbiochem.datacapture.SeekConnector.User;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -126,6 +130,55 @@ public class Application implements Interface {
 		return ok(dl, JSON).build();
 	}
 
+	@Override
+	public Response tree(String id, UriInfo ui) {
+		File base;
+		List<File> results;
+		try {
+			if ("#".equals(id)) {
+				base = null;
+				results = new ArrayList<>(lister.getRoots());
+			} else {
+				String[] bits = id.replaceFirst("^/+", "").split("/");
+				base = lister.getRoot(bits[0]);
+				results = lister.getListing(base, bits);
+			}
+		} catch (IOException e) {
+			return status(NOT_FOUND).type("text/plain").entity(e.getMessage())
+					.build();
+		}
+		Collections.sort(results, new Comparator<File>() {
+			@Override
+			public int compare(File o1, File o2) {
+				return o1.getName().compareTo(o2.getName());
+			}
+		});
+		JSONArray out = new JSONArray();
+		for (File f : results) {
+			JSONObject obj = new JSONObject();
+			if (base == null) {
+				obj.put("id", f.getName());
+				obj.put("parent", "#");
+				obj.put("text", "Instrument: " + f.getName());
+				obj.put("children", true);
+				obj.put("icon", "images/instrument.png");
+			} else {
+				obj.put("id", id + "/" + f.getName());
+				obj.put("parent", id);
+				obj.put("text", f.getName());
+				if (f.isDirectory()) {
+					obj.put("children", true);
+					obj.put("icon", "images/directory.png");
+				} else {
+					obj.put("state", new JSONObject().put("disabled", true));
+					obj.put("icon", "images/file.png");
+				}
+			}
+			out.put(obj);
+		}
+		return Response.ok(out, JSON).build();
+	}
+
 	private static final Comparator<ArchiveTask> taskComparator = new Comparator<ArchiveTask>() {
 		@Override
 		public int compare(ArchiveTask o1, ArchiveTask o2) {
@@ -173,8 +226,6 @@ public class Application implements Interface {
 			throw new BadRequestException("bad task");
 		proposedTask.validate();
 
-		User user = seek.getUser(proposedTask.submitter.url);
-
 		List<String> dirs = lister.getSubdirectories(proposedTask.directory);
 		if (dirs.isEmpty())
 			throw new BadRequestException(
@@ -187,15 +238,26 @@ public class Application implements Interface {
 			notes = notes.trim();
 
 		String id;
-		if (proposedTask.assay != null)
-			id = createTask(user, proposedTask.assay, dirs, proposedTask.project, notes);
-		else
-			id = createTask(user, proposedTask.study, dirs, proposedTask.project, notes);
+		try {
+			id = createTask(proposedTask.submitter, proposedTask.project,
+					dirs.get(0), notes);
+		} catch (IOException e) {
+			return Response.status(BAD_REQUEST).entity(e.getMessage()).build();
+		}
 
 		log.info("created task " + id + " to archive " + dirs.get(0));
 		UriBuilder ub = ui.getAbsolutePathBuilder().path("{id}");
 		return created(ub.build(id)).entity(tasks.describeTask(id, ub))
 				.type("application/json").build();
+	}
+
+	private String createTask(User user, Project project, String dir,
+			String notes) throws IOException {
+		user = infoSource.getUser(user.url);
+		project = infoSource.getProject(project.url);
+		log.info("creating task for " + user.name + " to work archive for project "
+				+ project.name);
+		return tasks.newTask(user, project, dir, notes);
 	}
 
 	private String createTask(User user, Assay a0, List<String> dirs,

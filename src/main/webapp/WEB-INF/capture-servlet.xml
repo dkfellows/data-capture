@@ -26,6 +26,7 @@
 				<property name="dropRootElement" value="true" />
 				<property name="supportUnwrapped" value="true" />
 			</bean>
+			<bean class="manchester.synbiochem.datacapture.ArrayWriter" />
 		</jaxrs:providers>
 	</jaxrs:server>
 

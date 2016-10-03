@@ -198,7 +198,7 @@ public class ArchiverTask implements Callable<URL> {
 		setState("finishing");
 
 		saveJsonManifest();
-		return tellSeek(ingestion);
+		return getCreatedAssetLocation(ingestion);
 	}
 
 	private File saveJsonManifest() {
@@ -371,14 +371,15 @@ public class ArchiverTask implements Callable<URL> {
 	}
 
 	/**
-	 * Create an asset in SEEK corresponding to this upload.
+	 * Get the location of the asset that has been created to correspond to this
+	 * upload. This URL is <i>only</i> ever used to report to the user.
 	 * 
 	 * @param result
 	 *            The information from OpenBIS.
 	 * @return the URL of the asset, or <tt>null</tt> if no such asset was made.
 	 */
-	protected URL tellSeek(IngestionResult result) {
-		return null;
+	protected URL getCreatedAssetLocation(IngestionResult result) {
+		return result.dataRoot;
 	}
 
 	/**
@@ -474,8 +475,9 @@ class SeekAwareArchiverTask extends ArchiverTask {
 	// Turn off links; combination of brokenness in SEEK and OpenBIS
 	private static boolean USE_SEEK_LINKS = false;
 
+	/** Create an asset in SEEK corresponding to this upload. */
 	@Override
-	protected URL tellSeek(IngestionResult ingestion) {
+	protected URL getCreatedAssetLocation(IngestionResult ingestion) {
 		try {
 			for (Entry ent : entries) {
 				if (USE_SEEK_LINKS && ingestion != null)

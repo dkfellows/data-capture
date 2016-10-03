@@ -330,8 +330,8 @@ function createIngestTask(user, project, dir, notes) {
 		hideSpinner();
 		addTaskRow($("#tasks"), data);
 	}, function(jqXHR, textStatus, errorThrown) {
+		console.log("problem when posting to " + $("#apiTasks")[0].href, request, jqXHR, textStatus, errorThrown);
 		hideSpinner();
-		console.log("problem when posting to " + $("#apiTasks")[0].href, request, errorThrown);
 	});
 }
 
@@ -345,6 +345,7 @@ var dirLeaves = {};
 function initDirTree() {
 	var tree = $("#dirtree");
 	var api = $("#apiDirs");
+	tree.children().remove();
 	try {
 		tree.jstree("destroy", true);
 	} catch (err) {
@@ -369,6 +370,15 @@ function initDirTree() {
 		theCurrentDir = selection.selected[0];
 		updateEnabled();
 	});
+}
+
+/** Update whether the submit button is enabled. */
+function updateEnabled() {
+	var theUser = $("#users option:selected").val();
+	var theProject = $("#projects option:selected").val();
+	var theDir = theCurrentDir;
+	var disabled = (theUser == "Choose..." || theProject == "Choose..." || theDir === undefined);
+	$("#newOK").button("option", "disabled", disabled);
 }
 
 /** Start everything going on page load */
@@ -408,13 +418,6 @@ $(function() {
 		createIngestTask(theUser, theProject, theDir, theNotes);
 		return true;
 	}
-	function updateEnabled() {
-		var theUser = $("#users option:selected").val();
-		var theProject = $("#projects option:selected").val();
-		var theDir = theCurrentDir;
-		var disabled = (theUser === undefined || theProject === undefined || theDir === undefined);
-		$("#newOK").button("option", "disabled", disabled);
-	}
 	dialog = $("#new").dialog({
 		autoOpen: false,
 		height: 'auto',
@@ -435,11 +438,12 @@ $(function() {
 		],
 		close: function() {
 			form[0].reset();
+			initDirTree();
 		}
 	});
 	updateEnabled();
-	theUsers.on("selectmenuchanged", updateEnabled);
-	theProjects.on("selectmenuchanged", updateEnabled);
+	theUsers.on("selectmenuchange", updateEnabled);
+	theProjects.on("selectmenuchange", updateEnabled);
 	form = dialog.find("form").on("submit", function(event){
 		event.preventDefault();
 		createTask();

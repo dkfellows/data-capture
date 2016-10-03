@@ -42,6 +42,7 @@ import java.util.TimeZone;
 
 import manchester.synbiochem.datacapture.ArchiverTask.Entry;
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
+import manchester.synbiochem.datacapture.SeekConnector.Project;
 import manchester.synbiochem.datacapture.SeekConnector.Study;
 import manchester.synbiochem.datacapture.SeekConnector.User;
 
@@ -76,8 +77,8 @@ public class MetadataRecorder {
 	private JSONObject openbisExperiment;
 	private Object openbisExperimentID;
 	private Object openbisExperimentURL;
-	private String project;
-	private String notes;
+	private final String project;
+	private final String notes;
 	private final Map<String, String> filetypeMap = new HashMap<>();
 
 	private class CSVRow implements Comparable<CSVRow> {
@@ -115,10 +116,12 @@ public class MetadataRecorder {
 		}
 	}
 
-	public MetadataRecorder(Tika tika, String project, String notes) {
+	public MetadataRecorder(Tika tika, Project project, String notes) {
 		ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		ISO8601.setTimeZone(UTC);
 		this.tika = tika;
+		this.project = (project != null ? project.name : null);
+		this.notes = notes;
 
 		timestamp = ISO8601.format(new Date());
 		o = new JSONObject();
@@ -126,7 +129,8 @@ public class MetadataRecorder {
 		o.put(TIME, "");
 		o.put(USER, NULL);
 		o.put(EXPERIMENT, NULL);
-		o.put(FILE_PROJECT, project);
+		if (this.project != null)
+			o.put(FILE_PROJECT, this.project);
 		o.put(FILE_NOTES, notes);
 		files = new HashMap<>();
 		csvBuffer = new StringBuilder();

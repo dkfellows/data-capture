@@ -157,13 +157,32 @@ public class DirectoryLister {
 	 */
 	public List<String> getSubdirectories(List<DirectoryEntry> directory) {
 		List<String> real = new ArrayList<>();
-		Set<String> sd = new HashSet<>(getSubdirectories());
 		for (DirectoryEntry dir : directory) {
-			String name = dir.name;
-			if (!sd.contains(name))
-				throw new BadRequestException("no such directory: " + name
-						+ " not in " + sd);
-			real.add(name);
+			String[] name = dir.name.split("/");
+			if (name == null || name.length < 2)
+				throw new BadRequestException("bad directory name: " + dir.name);
+			File where = null;
+			for (File root : roots)
+				if (root.getName().equals(name[0])) {
+					where = root;
+					break;
+				}
+			if (where == null)
+				throw new BadRequestException("no such directory: " + name[0]
+						+ " not in " + roots);
+			boolean first = true;
+			for (String bit : name) {
+				if (first) {
+					first = false;
+					continue;
+				}
+				if (bit == null || bit.isEmpty() || bit.equals(".")
+						|| bit.equals(".."))
+					throw new BadRequestException("bad directory name: "
+							+ dir.name);
+				where = new File(where, bit);
+			}
+			real.add(where.getAbsolutePath());
 		}
 		return real;
 	}

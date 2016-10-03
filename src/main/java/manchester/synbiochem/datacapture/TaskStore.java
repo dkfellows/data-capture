@@ -33,6 +33,7 @@ import javax.ws.rs.core.UriBuilder;
 
 import manchester.synbiochem.datacapture.Interface.ArchiveTask;
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
+import manchester.synbiochem.datacapture.SeekConnector.Project;
 import manchester.synbiochem.datacapture.SeekConnector.Study;
 import manchester.synbiochem.datacapture.SeekConnector.User;
 
@@ -69,7 +70,8 @@ public class TaskStore {
 	InformationSource infoSource;
 	@Value("${cifs.root}")
 	private URI cifsRoot;
-	@Autowired DirectoryLister lister;
+	@Autowired
+	DirectoryLister lister;
 	private Tika tika = new Tika();
 	private Log log = LogFactory.getLog(getClass());
 	private static final SimpleDateFormat ISO8601;
@@ -133,21 +135,26 @@ public class TaskStore {
 		});
 	}
 
-	public String newTask(SeekConnector.User user,
-			SeekConnector.Project project, String dir, String notes)
-			throws IOException {
-		MetadataRecorder md = new MetadataRecorder(tika, project.name, notes);
+	private File existingDirectory(String dir) throws IOException {
+		File d = new File(dir);
+		if (!(d.exists() && d.isDirectory()))
+			throw new IOException("can only archive an extant directory");
+		return d;
+	}
+
+	public String newTask(SeekConnector.User user, Project project, String dir,
+			String notes) throws IOException {
+		File d = existingDirectory(dir);
+
+		MetadataRecorder md = new MetadataRecorder(tika, project, notes);
 		md.setUser(user);
-		String[] bits = dir.split("/");
-		File root = lister.getRoot(bits[0]);
-		File d = lister.getListing(root, bits).get(0).getParentFile();
 		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot, d,
 				ingester, infoSource);
 		return storeTask(d, md, at, submit(at));
 	}
 
 	public String newTask(SeekConnector.User user, SeekConnector.Assay assay,
-			List<String> dirs, String project, String notes) {
+			List<String> dirs, Project project, String notes) {
 		if (user == null || user.url == null)
 			throw new IllegalArgumentException("need a user with a URL");
 		if (assay == null || assay.url == null)
@@ -162,7 +169,8 @@ public class TaskStore {
 		return storeTask(d, md, at, submit(at));
 	}
 
-	public String newTask(User user, Study study, List<String> dirs, String project, String notes) {
+	public String newTask(User user, Study study, List<String> dirs,
+			Project project, String notes) {
 		if (user == null || user.url == null)
 			throw new IllegalArgumentException("need a user with a URL");
 		if (study == null || study.url == null)
@@ -278,7 +286,7 @@ public class TaskStore {
 	private void finishedTask(ArchiverTask at) throws IOException {
 		// Ugly search, but space should be fairly small
 		ActiveTask t = null;
-		synchronized(this) {
+		synchronized (this) {
 			for (ActiveTask e : tasks.values())
 				if (e.getTask() == at) {
 					t = e;
@@ -288,6 +296,7 @@ public class TaskStore {
 		if (t != null)
 			finishedTask(t);
 	}
+
 	private void finishedTask(ActiveTask task) throws IOException {
 		log.info("stashing " + task.getKey() + " on disk");
 		doneTasks.put(task.getKey(), task.toFinished(savedTasksRoot));

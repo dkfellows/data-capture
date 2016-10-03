@@ -23,7 +23,6 @@ import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
@@ -255,25 +254,29 @@ public class Application implements Interface {
 			String notes) throws IOException {
 		user = infoSource.getUser(user.url);
 		project = infoSource.getProject(project.url);
-		log.info("creating task for " + user.name + " to work archive for project "
-				+ project.name);
+		log.info("creating task for " + user.name + " to archive " + dir
+				+ " for project " + project.name);
 		return tasks.newTask(user, project, dir, notes);
 	}
 
+	@SuppressWarnings("unused")
 	private String createTask(User user, Assay a0, List<String> dirs,
 			Project project, String notes) {
+		project = infoSource.getProject(project.url);
 		Assay assay = seek.getAssay(a0.url);
 		log.info("creating task for " + user.name + " to work on assay "
 				+ assay.url + " (" + assay.name + ")");
-		return tasks.newTask(user, assay, dirs, project.name, notes);
+		return tasks.newTask(user, assay, dirs, project, notes);
 	}
 
+	@SuppressWarnings("unused")
 	private String createTask(User user, Study s0, List<String> dirs,
 			Project project, String notes) {
+		project = infoSource.getProject(project.url);
 		Study study = seek.getStudy(s0.url);
 		log.info("creating task for " + user.name + " to work on study "
 				+ study.url + " (" + study.name + ")");
-		return tasks.newTask(user, study, dirs, project.name, notes);
+		return tasks.newTask(user, study, dirs, project, notes);
 	}
 
 	@Override

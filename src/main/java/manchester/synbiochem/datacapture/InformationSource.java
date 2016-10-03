@@ -161,10 +161,12 @@ public class InformationSource {
 	}
 
 	public Project getProject(URL url) {
-		String urlstr = url.toString();
-		for (Project p : projects)
-			if (p.url.toString().equals(urlstr))
-				return p;
+		if (url != null) {
+			String urlstr = url.toString();
+			for (Project p : projects)
+				if (p.url.toString().equals(urlstr))
+					return p;
+		}
 		throw new BadRequestException("no such project recognised");
 	}
 }

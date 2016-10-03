@@ -74,7 +74,7 @@ public class InformationSource {
 		log.info("getting internal project name for machine:" + machine
 				+ " and project:" + projectName);
 		String prefix = getInstrumentType(machine);
-		String project = "capture";
+		String project = "other";
 		if (projectName != null)
 			project = projectName.replaceAll("[^a-zA-Z0-9]+", "-");
 		if (project.equalsIgnoreCase(projectMasterName))

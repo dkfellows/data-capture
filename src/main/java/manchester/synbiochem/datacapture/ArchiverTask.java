@@ -87,6 +87,10 @@ public class ArchiverTask implements Callable<URL> {
 		return entries;
 	}
 
+	private static synchronized int issueID() {
+		return ++tasksCounter;
+	}
+
 	public ArchiverTask(MetadataRecorder metadata, File archiveRoot,
 			File metastoreRoot, URI cifsRoot, File directoryToArchive,
 			OpenBISIngester ingester, InformationSource infoSource) {
@@ -106,9 +110,7 @@ public class ArchiverTask implements Callable<URL> {
 		this.ingester = ingester;
 		this.entries = new ArrayList<>();
 		this.info = infoSource;
-		synchronized (ArchiverTask.class) {
-			myID = ++tasksCounter;
-		}
+		this.myID = issueID();
 	}
 
 	/**
@@ -199,14 +201,21 @@ public class ArchiverTask implements Callable<URL> {
 		return tellSeek(ingestion);
 	}
 
-	private void saveJsonManifest() {
+	private File saveJsonManifest() {
 		String name = directoryToArchive.getName() + ".json";
 		File jsonFile = new File(metastoreRoot, name);
 		try {
+			int counter = 0;
+			while (jsonFile.exists())
+				// We don't really ever want to overwrite an existing file
+				jsonFile = new File(metastoreRoot, directoryToArchive.getName()
+						+ "." + (++counter) + ".json");
 			FileUtils.write(jsonFile, metadata.get(), UTF8);
+			return jsonFile;
 		} catch (IOException e) {
 			final String MSG = "task[%d] failed to write metadata descriptor to %s";
 			log.warn(format(MSG, myID, jsonFile), e);
+			return null;
 		}
 	}
 

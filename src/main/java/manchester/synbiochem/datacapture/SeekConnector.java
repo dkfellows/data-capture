@@ -9,8 +9,6 @@ import static javax.ws.rs.core.Response.Status.fromStatusCode;
 import static org.apache.commons.codec.binary.Base64.encodeBase64String;
 import static org.apache.commons.io.IOUtils.readLines;
 
-import javax.annotation.PostConstruct;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -547,7 +545,7 @@ public class SeekConnector {
 		return studies;
 	}
 
-	private String getInstitutionName() {
+	public String getInstitutionName() {
 		try {
 			Element d = get("/institutions/" + institution + ".xml")
 					.getDocumentElement();
@@ -557,15 +555,6 @@ public class SeekConnector {
 			log.error("unexpected problem when fetching institution info", e);
 			return institution + " (unsafe)";
 		}
-	}
-
-	//@PostConstruct
-	private void firstFetch() {
-		// write this information into the log, deliberately
-		log.info("there are " + getUsers().size() + " users");
-		log.info("there are " + getStudies().size() + " studies");
-		log.info("there are " + getAssays().size() + " assays");
-		log.info("institution is set to " + getInstitutionName());
 	}
 
 	private String getAuthToken() throws IOException {

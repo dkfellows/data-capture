@@ -142,7 +142,7 @@ public class TaskStore {
 		File root = lister.getRoot(bits[0]);
 		File d = lister.getListing(root, bits).get(0).getParentFile();
 		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot, d,
-				seek, ingester, infoSource);
+				ingester, infoSource);
 		return storeTask(d, md, at, submit(at));
 	}
 
@@ -157,8 +157,8 @@ public class TaskStore {
 		MetadataRecorder md = new MetadataRecorder(tika, project, notes);
 		md.setUser(user);
 		md.setExperiment(assay);
-		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot, d,
-				seek, ingester, infoSource);
+		ArchiverTask at = new SeekAwareArchiverTask(md, archRoot, metaRoot,
+				cifsRoot, d, seek, ingester, infoSource);
 		return storeTask(d, md, at, submit(at));
 	}
 
@@ -172,7 +172,7 @@ public class TaskStore {
 		MetadataRecorder md = new MetadataRecorder(tika, project, notes);
 		md.setUser(user);
 		md.setExperiment(study);
-		ArchiverTask at = new StudyCreatingArchiverTask(study, md, archRoot,
+		ArchiverTask at = new AssayCreatingArchiverTask(study, md, archRoot,
 				metaRoot, cifsRoot, d, seek, ingester, infoSource);
 		return storeTask(d, md, at, submit(at));
 	}

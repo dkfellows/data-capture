@@ -36,6 +36,7 @@ public class InformationSource {
 	private String defaultInstrumentType;
 	private List<User> users;
 	private List<Project> projects;
+	private Map<String,String> emails = new HashMap<>();
 
 	@Value("#{'${instrument.types}'.split(',')}")
 	private void setInstrumentTypes(List<String> items) {
@@ -98,7 +99,7 @@ public class InformationSource {
 	private void setUsers(String userList) {
 		List<User> users = new ArrayList<>();
 		for (String userInfo : userList.split(",")) {
-			String[] details = userInfo.split(":", 3);
+			String[] details = userInfo.split(":", 4);
 			User u = new User();
 			try {
 				if (!details[0].isEmpty())
@@ -109,12 +110,14 @@ public class InformationSource {
 			if (!details[1].isEmpty())
 				u.name = details[1].trim();
 			try {
-				if (!details[2].isEmpty())
-					u.url = new URL(details[2].trim());
+				if (!details[3].isEmpty())
+					u.url = new URL(details[3].trim());
 			} catch (MalformedURLException e) {
-				log.error("problem parsing user URL: " + details[2], e);
+				log.error("problem parsing user URL: " + details[3], e);
 			}
 			users.add(u);
+			if (!details[2].trim().isEmpty() && details[2].matches(".+@.+"))
+				emails.put(u.url.toString(), details[2].trim());
 		}
 		this.users = unmodifiableList(users);
 	}
@@ -168,5 +171,11 @@ public class InformationSource {
 					return p;
 		}
 		throw new BadRequestException("no such project recognised");
+	}
+
+	public String getEmailAddress(User user) {
+		if (user == null || user.url == null)
+			return null;
+		return emails.get(user.url.toString());
 	}
 }

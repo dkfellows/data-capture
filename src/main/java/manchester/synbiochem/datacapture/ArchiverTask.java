@@ -27,6 +27,9 @@ import manchester.synbiochem.datacapture.SeekConnector.Study;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.mail.MailException;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 
 /**
  * The overall sub-tasks of this task are:
@@ -67,6 +70,8 @@ public class ArchiverTask implements Callable<URL> {
 	Long finish;
 	DateFormat ISO8601;
 	DateFormat HUMAN_READABLE;
+	JavaMailSender sender;
+	SimpleMailMessage messageTemplate;
 
 	ArchiverTask(File dir) {
 		directoryToArchive = dir;
@@ -134,7 +139,9 @@ public class ArchiverTask implements Callable<URL> {
 		log.info("task[" + myID + "] started archive");
 		start = currentTimeMillis();
 		try {
-			return workflow();
+			URL result = workflow();
+			sendMailNotification(result);
+			return result;
 		} catch (RuntimeException e) {
 			log.warn("task[" + myID + "] unexpected problem processing", e);
 			return null;
@@ -144,7 +151,26 @@ public class ArchiverTask implements Callable<URL> {
 		}
 	}
 
+	private void sendMailNotification(URL result) {
+		SimpleMailMessage msg = new SimpleMailMessage(this.messageTemplate);
+		String who = info.getEmailAddress(metadata.getUser());
+		if (who == null)
+			return;
+		msg.setTo(who);
+		msg.setText("Dear " + metadata.getUser().name
+				+ "\n\nThe ingestion from " + directoryToArchive
+				+ " has now completed. Metadata has been written to "
+				+ jsonLocation + " and a formal record of the ingestion is at "
+				+ result);
+		try {
+			this.sender.send(msg);
+		}catch(MailException e) {
+			log.warn("problem when sending notification email", e);
+		}
+	}
+
 	private String state;
+	private File jsonLocation;
 
 	public String getState() {
 		synchronized (this) {
@@ -197,7 +223,7 @@ public class ArchiverTask implements Callable<URL> {
 
 		setState("finishing");
 
-		saveJsonManifest();
+		this.jsonLocation = saveJsonManifest();
 		return getCreatedAssetLocation(ingestion);
 	}
 

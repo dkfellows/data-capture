@@ -341,6 +341,36 @@ var theCurrentProject = undefined;
 var theCurrentDir = undefined;
 /** What nodes in the directory list are usefully selectable? */
 var dirLeaves = {};
+
+function initDirTree() {
+	var tree = $("#dirtree");
+	var api = $("#apiDirs");
+	try {
+		tree.jstree("destroy", true);
+	} catch (err) {
+		console.log(err);
+	}
+	tree.empty();
+	tree.jstree({
+		core : {
+			data : {
+				url : function(node) {
+					return api[0].href;
+				},
+				data : function(node) {
+					return {
+						'id' : node.id
+					};
+				}
+			},
+			multiple : false
+		}
+	}).on('select_node.jstree', function(node, selection) {
+		theCurrentDir = selection.selected[0];
+		updateEnabled();
+	});
+}
+
 /** Start everything going on page load */
 $(function() {
 	var theUsers = $("#users"), theDirs = $("#dirs");
@@ -374,6 +404,7 @@ $(function() {
 			theNotes = "";
 		}
 		dialog.dialog("close");
+		initDirTree();
 		createIngestTask(theUser, theProject, theDir, theNotes);
 		return true;
 	}
@@ -398,6 +429,7 @@ $(function() {
 				text: "Cancel",
 				click: function () {
 					dialog.dialog("close");
+					initDirTree();
 				}
 			}
 		],
@@ -436,26 +468,7 @@ $(function() {
 			addOption(theProjects, item.id, item.url, item.name);
 		});
 	});
-	$("#dirtree").jstree({
-		core : {
-			data : {
-				url: function (node) {
-					return $("#apiDirs")[0].href;
-				},
-				data : function(node) {
-					return {
-						'id' : node.id
-					};
-				}
-			},
-			multiple : false
-		}
-	}).on('select_node.jstree', function(node, selection) {
-		theCurrentDir = selection.selected[0];
-		updateEnabled();
-	}).on('after_close.jstree', function(node) {
-		console.log("closed node", node);
-	});
+	initDirTree();
 
 	getJSON($("#apiTasks")[0].href, function(data) {
 		doneRetrieve();

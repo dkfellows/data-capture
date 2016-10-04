@@ -38,4 +38,29 @@
 	<bean name="taskStore" class="manchester.synbiochem.datacapture.TaskStore" />
 	<bean name="info" class="manchester.synbiochem.datacapture.InformationSource" />
 	<bean name="ingester" class="manchester.synbiochem.datacapture.OpenBISIngester" />
+	<bean name="mailer" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+		<property name="host" value="${mail.host}" />
+		<property name="username" value="${mail.user}" />
+		<property name="password" value="${mail.pass}" />
+		<property name="protocol" value="${mail.protocol:smtp}" />
+		<property name="javaMailProperties">
+			<props>
+				<prop key="mail.smtp.auth">true</prop><!-- Why would this ever be false? -->
+				<prop key="mail.smtp.starttls.enable">${mail.starttls:true}</prop>
+			</props>
+		</property>
+	</bean>
+	<bean name="ingestFinishedMessage" class="org.springframework.mail.SimpleMailMessage">
+		<property name="from" value="${mail.sender:${mail.user}}" />
+		<property name="subject" value="${mail.subject}" />
+		<property name="text">
+			<value><![CDATA[Dear %s.
+
+The ingestion from %s has now completed; the data came from Machine %s and was associated with Project %s.
+Metadata has been written to %s and a formal record of the ingestion is at %s.
+
+The Data Archiving System
+]]></value>
+		</property>
+	</bean>
 </beans>

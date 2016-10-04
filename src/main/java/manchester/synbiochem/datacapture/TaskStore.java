@@ -43,6 +43,8 @@ import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.mail.MailSender;
+import org.springframework.mail.SimpleMailMessage;
 
 /**
  * Class and bean that manages the collection of archiving tasks, both current
@@ -72,6 +74,10 @@ public class TaskStore {
 	private URI cifsRoot;
 	@Autowired
 	DirectoryLister lister;
+	@Autowired
+	private MailSender mailSender;
+	@Autowired
+	private SimpleMailMessage messageTemplate;
 	private Tika tika = new Tika();
 	private Log log = LogFactory.getLog(getClass());
 	private static final SimpleDateFormat ISO8601;
@@ -149,39 +155,39 @@ public class TaskStore {
 		MetadataRecorder md = new MetadataRecorder(tika, project, notes);
 		md.setUser(user);
 		ArchiverTask at = new ArchiverTask(md, archRoot, metaRoot, cifsRoot, d,
-				ingester, infoSource);
+				ingester, infoSource, mailSender, messageTemplate);
 		return storeTask(d, md, at, submit(at));
 	}
 
 	public String newTask(SeekConnector.User user, SeekConnector.Assay assay,
 			List<String> dirs, Project project, String notes) {
 		if (user == null || user.url == null)
-			throw new IllegalArgumentException("need a user with a URL");
+			throw new IllegalArgumentException("need mailSender user with mailSender URL");
 		if (assay == null || assay.url == null)
-			throw new IllegalArgumentException("need an assay with a URL");
+			throw new IllegalArgumentException("need an assay with mailSender URL");
 		File d = existingDirectory(dirs);
 
 		MetadataRecorder md = new MetadataRecorder(tika, project, notes);
 		md.setUser(user);
 		md.setExperiment(assay);
 		ArchiverTask at = new SeekAwareArchiverTask(md, archRoot, metaRoot,
-				cifsRoot, d, seek, ingester, infoSource);
+				cifsRoot, d, seek, ingester, infoSource, mailSender, messageTemplate);
 		return storeTask(d, md, at, submit(at));
 	}
 
 	public String newTask(User user, Study study, List<String> dirs,
 			Project project, String notes) {
 		if (user == null || user.url == null)
-			throw new IllegalArgumentException("need a user with a URL");
+			throw new IllegalArgumentException("need mailSender user with mailSender URL");
 		if (study == null || study.url == null)
-			throw new IllegalArgumentException("need a study with a URL");
+			throw new IllegalArgumentException("need mailSender study with mailSender URL");
 		File d = existingDirectory(dirs);
 
 		MetadataRecorder md = new MetadataRecorder(tika, project, notes);
 		md.setUser(user);
 		md.setExperiment(study);
 		ArchiverTask at = new AssayCreatingArchiverTask(study, md, archRoot,
-				metaRoot, cifsRoot, d, seek, ingester, infoSource);
+				metaRoot, cifsRoot, d, seek, ingester, infoSource, mailSender, messageTemplate);
 		return storeTask(d, md, at, submit(at));
 	}
 
@@ -322,7 +328,7 @@ public class TaskStore {
 	private void stopAllTasks() {
 		List<ActiveTask> tasks;
 		synchronized (this) {
-			// Take a copy so we don't need to hold the lock
+			// Take mailSender copy so we don't need to hold the lock
 			tasks = new ArrayList<>(this.tasks.values());
 		}
 		for (ActiveTask task : tasks)

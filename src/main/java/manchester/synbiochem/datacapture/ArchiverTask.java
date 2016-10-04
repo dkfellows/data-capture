@@ -28,8 +28,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.mail.MailException;
+import org.springframework.mail.MailSender;
 import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 
 /**
  * The overall sub-tasks of this task are:
@@ -58,6 +58,8 @@ public class ArchiverTask implements Callable<URL> {
 	final URI cifsRoot;
 	final OpenBISIngester ingester;
 	final InformationSource info;
+	private final MailSender mailSender;
+	private final SimpleMailMessage messageTemplate;
 	final String machine;
 	final String project;
 	volatile int fileCount;
@@ -70,8 +72,6 @@ public class ArchiverTask implements Callable<URL> {
 	Long finish;
 	DateFormat ISO8601;
 	DateFormat HUMAN_READABLE;
-	JavaMailSender sender;
-	SimpleMailMessage messageTemplate;
 
 	ArchiverTask(File dir) {
 		directoryToArchive = dir;
@@ -86,6 +86,8 @@ public class ArchiverTask implements Callable<URL> {
 		machine = null;
 		ingester = null;
 		info = null;
+		mailSender = null;
+		messageTemplate = null;
 	}
 
 	List<Entry> getEntries() {
@@ -98,7 +100,8 @@ public class ArchiverTask implements Callable<URL> {
 
 	public ArchiverTask(MetadataRecorder metadata, File archiveRoot,
 			File metastoreRoot, URI cifsRoot, File directoryToArchive,
-			OpenBISIngester ingester, InformationSource infoSource) {
+			OpenBISIngester ingester, InformationSource infoSource,
+			MailSender sender, SimpleMailMessage messageTemplate) {
 		ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 		ISO8601.setTimeZone(UTC);
 		HUMAN_READABLE = new SimpleDateFormat("dd MMMM yyyy");
@@ -115,6 +118,8 @@ public class ArchiverTask implements Callable<URL> {
 		this.ingester = ingester;
 		this.entries = new ArrayList<>();
 		this.info = infoSource;
+		this.mailSender = sender;
+		this.messageTemplate = messageTemplate;
 		this.myID = issueID();
 	}
 
@@ -152,19 +157,21 @@ public class ArchiverTask implements Callable<URL> {
 	}
 
 	private void sendMailNotification(URL result) {
-		SimpleMailMessage msg = new SimpleMailMessage(this.messageTemplate);
+		if (messageTemplate == null || mailSender == null)
+			return;
+
 		String who = info.getEmailAddress(metadata.getUser());
 		if (who == null)
 			return;
+
+		SimpleMailMessage msg = new SimpleMailMessage(messageTemplate);
 		msg.setTo(who);
-		msg.setText("Dear " + metadata.getUser().name
-				+ "\n\nThe ingestion from " + directoryToArchive
-				+ " has now completed. Metadata has been written to "
-				+ jsonLocation + " and a formal record of the ingestion is at "
-				+ result);
+		msg.setSentDate(new Date());
+		msg.setText(format(messageTemplate.getText(), metadata.getUser().name,
+				directoryToArchive, machine, project, jsonLocation, result));
 		try {
-			this.sender.send(msg);
-		}catch(MailException e) {
+			mailSender.send(msg);
+		} catch (MailException e) {
 			log.warn("problem when sending notification email", e);
 		}
 	}
@@ -469,12 +476,14 @@ class SeekAwareArchiverTask extends ArchiverTask {
 	final SeekConnector seek;
 	private volatile int linkCount;
 
-	public SeekAwareArchiverTask(MetadataRecorder metadata,
-			File archiveRoot, File metastoreRoot, URI cifsRoot,
-			File directoryToArchive, SeekConnector seek,
-			OpenBISIngester ingester, InformationSource infoSource) {
+	public SeekAwareArchiverTask(MetadataRecorder metadata, File archiveRoot,
+			File metastoreRoot, URI cifsRoot, File directoryToArchive,
+			SeekConnector seek, OpenBISIngester ingester,
+			InformationSource infoSource, MailSender mailSender,
+			SimpleMailMessage messageTemplate) {
 		super(metadata, archiveRoot, metastoreRoot, cifsRoot,
-				directoryToArchive, ingester, infoSource);
+				directoryToArchive, ingester, infoSource, mailSender,
+				messageTemplate);
 		this.seek = seek;
 	}
 
@@ -568,9 +577,11 @@ class AssayCreatingArchiverTask extends SeekAwareArchiverTask {
 	public AssayCreatingArchiverTask(Study study, MetadataRecorder metadata,
 			File archiveRoot, File metastoreRoot, URI cifsRoot,
 			File directoryToArchive, SeekConnector seek,
-			OpenBISIngester ingester, InformationSource infoSource) {
+			OpenBISIngester ingester, InformationSource infoSource,
+			MailSender mailSender, SimpleMailMessage messageTemplate) {
 		super(metadata, archiveRoot, metastoreRoot, cifsRoot,
-				directoryToArchive, seek, ingester, infoSource);
+				directoryToArchive, seek, ingester, infoSource, mailSender,
+				messageTemplate);
 		this.study = study;
 	}
 
@@ -600,13 +611,13 @@ class AssayCreatingArchiverTask extends SeekAwareArchiverTask {
 	}
 
 	/*
-	 * Not the greatest way of creating a title, but not too problematic
-	 * either.
+	 * Not the greatest way of creating a title, but not too problematic either.
 	 */
 	private String getAssayTitle(String directoryName) {
 		String title = directoryName.replace("_", " ");
 		if (title.matches("^\\d+ \\d+ \\d+ .*$")) {
-			// If the leading part looks like a date, make it look more like a date
+			// If the leading part looks like a date, make it look more like a
+			// date
 			String[] parts = title.split(" +", 4);
 			title = parts[0] + "/" + parts[1] + "/" + parts[2] + " " + parts[3];
 		}

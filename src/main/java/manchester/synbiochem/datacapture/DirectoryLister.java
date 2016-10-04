@@ -1,9 +1,12 @@
 package manchester.synbiochem.datacapture;
 
 import static java.lang.System.currentTimeMillis;
+import static java.util.Collections.unmodifiableList;
 import static org.apache.commons.logging.LogFactory.getLog;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -13,7 +16,7 @@ import javax.annotation.PostConstruct;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.WebApplicationException;
 
-import manchester.synbiochem.datacapture.Interface.Directory;
+import manchester.synbiochem.datacapture.Interface.DirectoryEntry;
 
 import org.apache.commons.logging.Log;
 import org.springframework.beans.factory.annotation.Value;
@@ -87,6 +90,60 @@ public class DirectoryLister {
 		return subs;
 	}
 
+	public List<File> getListing(File root, String[] bits) throws IOException {
+		File dir = walkPath(bits, root);
+		List<File> result = new ArrayList<>();
+		File[] list = dir.listFiles();
+		if (list == null)
+			throw new IOException("not a directory");
+		// Need to filter the results
+		for (File bit : list) {
+			String name = bit.getName();
+			if (!(name.equals(".") || name.equals("..")))
+				result.add(bit);
+		}
+		return result;
+	}
+
+	public List<File> getRoots() {
+		return unmodifiableList(roots);
+	}
+
+	/** Look up the root with the given name. Assumes all roots have differing final components. */
+	public File getRoot(String rootname) throws IOException {
+		for (File root : roots)
+			if (root.getName().equals(rootname))
+				return root;
+		throw new IOException("no such root");
+	}
+	/** Find the existing file with the given name in the given directory. */
+	private File findInDir(String name, File dir) throws FileNotFoundException {
+		if (name.equals(".") || name.equals(".."))
+			throw new FileNotFoundException("illegal path component");
+		for (File d : dir.listFiles())
+			if (d.getName().equals(name))
+				return d;
+		throw new FileNotFoundException("no such file: " + name);
+	}
+
+	private File walkPath(String[] bits, File root) throws IOException {
+		File dir = root;
+		boolean first = true;
+		for (String bit : bits) {
+			// Skip first element; that was already used to get the root
+			if (first) {
+				first = false;
+				continue;
+			}
+			// Skip absent bits
+			if (bit == null || bit.isEmpty())
+				continue;
+			// Map the name to the directory entry
+			dir = findInDir(bit, dir);
+		}
+		return dir;
+	}
+
 	/**
 	 * Get the subdirectories from our vetted list that match up with the
 	 * requested list of directories.
@@ -98,15 +155,34 @@ public class DirectoryLister {
 	 * @throws WebApplicationException
 	 *             If any of the vetting steps fail.
 	 */
-	public List<String> getSubdirectories(List<Directory> directory) {
+	public List<String> getSubdirectories(List<DirectoryEntry> directory) {
 		List<String> real = new ArrayList<>();
-		Set<String> sd = new HashSet<>(getSubdirectories());
-		for (Directory dir : directory) {
-			String name = dir.name;
-			if (!sd.contains(name))
-				throw new BadRequestException("no such directory: " + name
-						+ " not in " + sd);
-			real.add(name);
+		for (DirectoryEntry dir : directory) {
+			String[] name = dir.name.split("/");
+			if (name == null || name.length < 2)
+				throw new BadRequestException("bad directory name: " + dir.name);
+			File where = null;
+			for (File root : roots)
+				if (root.getName().equals(name[0])) {
+					where = root;
+					break;
+				}
+			if (where == null)
+				throw new BadRequestException("no such directory: " + name[0]
+						+ " not in " + roots);
+			boolean first = true;
+			for (String bit : name) {
+				if (first) {
+					first = false;
+					continue;
+				}
+				if (bit == null || bit.isEmpty() || bit.equals(".")
+						|| bit.equals(".."))
+					throw new BadRequestException("bad directory name: "
+							+ dir.name);
+				where = new File(where, bit);
+			}
+			real.add(where.getAbsolutePath());
 		}
 		return real;
 	}

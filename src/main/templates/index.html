@@ -4,7 +4,8 @@
 <link id="apiUsers" href="api/users">
 <link id="apiStudies" href="api/studies">
 <link id="apiAssays" href="api/assays">
-<link id="apiDirs" href="api/directories">
+<link id="apiProjects" href="api/projects">
+<link id="apiDirs" href="api/tree">
 <link id="apiTasks" href="api/tasks">
 <script type="text/javascript" src="capture.js"></script>
 <link rel="stylesheet" href="capture.css">
@@ -15,48 +16,73 @@
 
 <p>
 	This is the SynBioChem experimental data capture and archiving service.
-	It exists to record the primary data from experiments <i>once those
-		experiments have completed</i> and preserve the data for future reference.
-	It arranges for the data to be copied to the main working storage
-	system (the <a href="http://sbc-ds1.mib.manchester.ac.uk:5000/">Synology
-		NAS</a>) and for <abbr title="not yet implemented">preservation
-		archives to be built of the data</abbr>, and will record in the SynBioChem
-	SEEK where the data has been stored.
+	It exists to record the primary data from experiments
+	<i>once those experiments have completed</i> and preserve the data for
+	future reference. It arranges for the data to be copied to the main
+	working storage system (the
+	<a href="http://sbc-ds1.mib.manchester.ac.uk:5000/">Synology NAS</a>)
+	and for preservation archives to be built of the data, and will record
+	in the SynBioChem OpenBIS repository where the data has been stored. It
+	<i>does not</i> delete the data from the instruments, and the data must
+	be copied to the
+	<b>DATA_TRANSFER</b>
+	directory (usually on the
+	<b>D:</b>
+	or
+	<b>E:</b>
+	drive) on the instruments for this service to be able to see it at all.
 </p>
-
 <p>
-<strong>WARNING:</strong> We may need to reorganise this interface soon in order to correct experimental modelling problems.
+	You can always refresh this page: you will not stop any current processing by doing so.
 </p>
 
 <div id="new" title="New archive task" class="flexcont flexible" style="max-height: 85%">
-	<p>
-		Please select who did the experiment, what SEEK Study or Assay this is part of,
-		and where the data to record is located. Note that only existing studies and
-		assays are selectable here (this page <abbr title="every 30 seconds">periodically
-			polls</abbr>), and the studies and assays must be shared for update with the whole
-		SynBioChem team.
-	</p>
-	<div class="newContainer flexcont flexible" style="width: 100%">
+	<p>Please select who did the experiment, what SynBioChem project this
+		is part of, and where the data to record is located. You may also
+		provide some notes that will be recorded as part of the metadata for
+		this project.</p>
 	<form id="newTask" class="flexcont flexible">
-		<fieldset class="flexcont flexible">
-			<label for="users">Responsible Scientist:</label>
-			<select id="users" style="width: 100%">
-				<option selected id="users_initial">Choose...</option>
-			</select>
-			<!-- ============================================================ -->
-			<div class="treescroll flexible" style="max-height: 35em">
-				<label for="experimenttree">SEEK Assay:</label>
-				<div id="experimenttree"></div>
-			<!-- ============================================================ -->
-				<label for="dirs">Data Directory:</label>
-				<div id="dirtree"></div>
-			</div>
-			<!-- ============================================================ -->
-			<input type="submit" tabindex="-1"
-				style="position: absolute; top: -1000px">
-		</fieldset>
+		<table>
+			<tr>
+				<td>
+					<!-- ============================================================ -->
+					<label for="users">Responsible Scientist:</label>
+					<select id="users" style="width: 48%">
+						<option selected id="users_initial">Choose...</option>
+					</select>
+				</td>
+				<td>
+					<!-- ============================================================ -->
+					<label for="projects">SynBioChem Project:</label> <select
+					id="projects" style="width: 48%">
+						<option selected id="projects_initial">Choose...</option>
+					<!-- ============================================================ -->
+				</select>
+				</td>
+			</tr>
+			<tr style="max-height: 15em">
+				<td colspan="2">
+					<!-- ============================================================ -->
+					<label for="dirs">Data Directory:</label>
+					<div class="treescroll flexible" style="max-height: 35vh">
+						<div id="dirtree"></div>
+					</div>
+					<!-- ============================================================ -->
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<!-- ============================================================ -->
+					<label for="notes">Notes:</label>
+					<textarea id="notes" rows="3" cols="50" style="max-height: 5em; width:90%"
+						></textarea>
+					<!-- ============================================================ -->
+					<input type="submit" tabindex="-1" style="position: absolute; top: -1000px">
+					<!-- ============================================================ -->
+				</td>
+			</tr>
+		</table>
 	</form>
-	</div>
 </div>
 
 <div id="current">

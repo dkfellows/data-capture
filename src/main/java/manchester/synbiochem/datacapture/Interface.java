@@ -11,72 +11,107 @@ import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
 
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
-import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlSchemaType;
 import javax.xml.bind.annotation.XmlSeeAlso;
 import javax.xml.bind.annotation.XmlType;
 
+import manchester.synbiochem.datacapture.SeekConnector.Assay;
+import manchester.synbiochem.datacapture.SeekConnector.Project;
+import manchester.synbiochem.datacapture.SeekConnector.Study;
+import manchester.synbiochem.datacapture.SeekConnector.User;
+
 public interface Interface {
+	/** Common elements of API URI path names. */
+	interface Paths {
+		String ROOT = "/";
+		String USERS = "users";
+		String PROJECTS = "projects";
+		String STUDIES = "studies";
+		String ASSAYS = "assays";
+		String DIR = "dir";
+		String TREE = "tree";
+		String TASKS = "tasks";
+	}
 	@GET
-	@Path("/")
+	@Path(Paths.ROOT)
 	@Produces("text/plain")
-	String status();
+	String getStatus();
 
 	@GET
-	@Path("/")
+	@Path(Paths.ROOT)
 	@Produces(JSON)
 	Description describe(@Context UriInfo ui);
 
 	@GET
-	@Path("users")
+	@Path(Paths.USERS)
 	@Produces(JSON)
 	UserList users();
 
 	@GET
-	@Path("studies")
+	@Path(Paths.PROJECTS)
+	@Produces(JSON)
+	ProjectList projects();
+
+	@GET
+	@Path(Paths.STUDIES)
 	@Produces(JSON)
 	StudyList studies();
 	
 	@GET
-	@Path("assays")
+	@Path(Paths.ASSAYS)
 	@Produces(JSON)
 	AssayList assays();
 
 	@GET
-	@Path("directories")
+	@Path(Paths.DIR)
 	@Produces(JSON)
-	DirectoryList dirs();
+	DirectoryList dirs(@Context UriInfo ui);
 
 	@GET
-	@Path("tasks")
+	@Path(Paths.DIR + "/{dir:.+}")
+	@Produces(JSON)
+	Response dirs(@PathParam("dir") String dir, @Context UriInfo ui);
+
+	@GET
+	@Path(Paths.TREE)
+	@Produces(JSON)
+	Response tree(@QueryParam("id") @DefaultValue("#") String id,
+			@Context UriInfo ui);
+
+	@GET
+	@Path(Paths.TASKS)
 	@Produces(JSON)
 	ArchiveTaskList tasks(@Context UriInfo ui);
 
 	@GET
-	@Path("tasks/{id}")
+	@Path(Paths.TASKS + "/{id}")
 	@Produces(JSON)
 	Response task(@PathParam("id") String id);
 
 	@POST
-	@Path("tasks")
+	@Path(Paths.TASKS)
 	@Consumes(JSON)
 	@Produces(JSON)
 	Response createTask(ArchiveTask proposedTask, @Context UriInfo ui);
 
 	@DELETE
-	@Path("tasks/{id}")
+	@Path(Paths.TASKS + "/{id}")
 	@Produces(JSON)
 	Response deleteTask(@PathParam("id") String id, @Context UriInfo ui);
 
@@ -93,55 +128,111 @@ public interface Interface {
 	}
 
 	@XmlRootElement(name = "users")
-	@XmlSeeAlso(SeekConnector.User.class)
+	@XmlSeeAlso(User.class)
 	class UserList {
 		@XmlElement(name = "user")
-		public List<SeekConnector.User> users = new ArrayList<>();
+		public List<User> users = new ArrayList<>();
 	}
 
 	@XmlRootElement(name = "studies")
-	@XmlSeeAlso(SeekConnector.Study.class)
+	@XmlSeeAlso(Study.class)
 	class StudyList {
 		@XmlElement(name = "study")
-		public List<SeekConnector.Study> studies = new ArrayList<>();
+		public List<Study> studies = new ArrayList<>();
 	}
 
 	@XmlRootElement(name = "assays")
-	@XmlSeeAlso(SeekConnector.Assay.class)
+	@XmlSeeAlso(Assay.class)
 	class AssayList {
 		@XmlElement(name = "assay")
-		public List<SeekConnector.Assay> assays = new ArrayList<>();
+		public List<Assay> assays = new ArrayList<>();
+	}
+
+	@XmlRootElement(name = "projects")
+	@XmlSeeAlso(Project.class)
+	class ProjectList {
+		@XmlElement(name = "project")
+		public List<Project> projects = new ArrayList<>();
 	}
 
 	@XmlRootElement(name = "directories")
 	class DirectoryList {
-		@XmlElement(name = "directory")
-		public List<Directory> dirs = new ArrayList<>();
+		@XmlElement(name = "directory-entry")
+		public List<DirectoryEntry> dirs = new ArrayList<>();
 	}
 
 	@XmlType
-	class Directory {
+	class DirectoryEntry {
 		private static final SimpleDateFormat ISO8601;
 		static {
 			ISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 			ISO8601.setTimeZone(TimeZone.getTimeZone("UTC"));
 		}
-		public Directory() {}
-		Directory(String d) {
-			name = d;
+		public DirectoryEntry() {}
+		DirectoryEntry(String d) {
 			File f = new File(d);
-			if (f.exists() && f.isDirectory())
+			name = f.getName();
+			if (f.exists()) {
 				synchronized(ISO8601) {
 					modTime = ISO8601.format(new Date(f.lastModified()));
 				}
-			id = "dir_" + md5Hex(d);
+				if (f.isDirectory())
+					type = "directory";
+				else if (f.isFile())
+					type = "file";
+			}
+			id = "dir_" + md5Hex(f.getAbsolutePath());
+		}
+		DirectoryEntry(File f, UriBuilder ub) {
+			name = f.getName();
+			if (f.exists()) {
+				synchronized(ISO8601) {
+					modTime = ISO8601.format(new Date(f.lastModified()));
+				}
+				if (f.isDirectory())
+					type = "directory";
+				else if (f.isFile())
+					type = "file";
+			}
+			id = "dir_" + md5Hex(f.getAbsolutePath());
+			uri = ub.clone().path("{name}").build(f.getName()).toString();
+		}
+		DirectoryEntry(File f, File base, UriBuilder ub) {
+			name = f.getName();
+			String path = f.getAbsolutePath();
+			if (f.exists()) {
+				synchronized(ISO8601) {
+					modTime = ISO8601.format(new Date(f.lastModified()));
+				}
+				if (f.isDirectory())
+					type = "directory";
+				else if (f.isFile())
+					type = "file";
+			}
+			id = "dir_" + md5Hex(path);
+			// Build the URI correctly. THIS IS SNEAKY CODE!
+			String nm = path.substring(
+					base.getAbsolutePath().length() - base.getName().length());
+			String[] bits = nm.split(File.separator); // assume separator length = 1
+			StringBuilder pathPattern = new StringBuilder();
+			String sep = "";
+			for (int i = 0; i < bits.length; i++) {
+				pathPattern.append(sep).append("{bit").append(i).append("}");
+				sep = "/"; // URL separator, not file separator
+			}
+			uri = ub.clone().path(pathPattern.toString())
+					.build((Object[]) bits).toString();
 		}
 		@XmlElement(name = "modification-time")
 		public String modTime;
 		@XmlElement
 		public String name;
-		@XmlAttribute
+		@XmlElement
 		public String id;
+		@XmlElement
+		public String type;
+		@XmlElement
+		public String uri;
 	}
 
 	@XmlRootElement(name = "tasks")
@@ -175,9 +266,30 @@ public interface Interface {
 		@XmlElement
 		public SeekConnector.Study study;
 		@XmlElement
-		public List<Directory> directory = new ArrayList<>();
+		public List<DirectoryEntry> directory = new ArrayList<>();
 		@XmlElement(name = "created-asset")
 		public URI createdAsset;
+		@XmlElement(name = "created-openbis-experiment")
+		public URI createdExperiment;
+		@XmlElement
+		public SeekConnector.Project project;
+		@XmlElement
+		public String notes;
+
+		void validate() throws BadRequestException {
+			if (submitter == null)
+				throw new BadRequestException("no user specified");
+			if (submitter.url == null)
+				throw new BadRequestException("no user url");
+
+			if (project == null)
+				throw new BadRequestException("no project specified");
+			if (project.url == null)
+				throw new BadRequestException("no project url");
+
+			if (directory == null)
+				throw new BadRequestException("bad directory");
+		}
 	}
 }
 

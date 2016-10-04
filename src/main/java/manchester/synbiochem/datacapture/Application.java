@@ -4,10 +4,15 @@ import static java.util.Collections.sort;
 import static javax.ws.rs.core.Response.created;
 import static javax.ws.rs.core.Response.ok;
 import static javax.ws.rs.core.Response.seeOther;
+import static javax.ws.rs.core.Response.status;
+import static javax.ws.rs.core.Response.Status.BAD_REQUEST;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static manchester.synbiochem.datacapture.Constants.JSON;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -22,11 +27,14 @@ import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
+import manchester.synbiochem.datacapture.SeekConnector.Project;
 import manchester.synbiochem.datacapture.SeekConnector.Study;
 import manchester.synbiochem.datacapture.SeekConnector.User;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -43,10 +51,12 @@ public class Application implements Interface {
 	TaskStore tasks;
 	@Autowired
 	DirectoryLister lister;
+	@Autowired
+	InformationSource infoSource;
 	private Log log = LogFactory.getLog(getClass());
 
 	@Override
-	public String status() {
+	public String getStatus() {
 		return "OK";
 	}
 
@@ -64,8 +74,15 @@ public class Application implements Interface {
 	@Override
 	public UserList users() {
 		UserList ul = new UserList();
-		ul.users = new ArrayList<>(seek.getUsers());
+		ul.users = new ArrayList<>(infoSource.getUsers());
 		return ul;
+	}
+
+	@Override
+	public ProjectList projects() {
+		ProjectList pl = new ProjectList();
+		pl.projects = new ArrayList<>(infoSource.getProjects());
+		return pl;
 	}
 
 	@Override
@@ -83,11 +100,82 @@ public class Application implements Interface {
 	}
 
 	@Override
-	public DirectoryList dirs() {
+	public DirectoryList dirs(UriInfo ui) {
+		UriBuilder ub = ui.getBaseUriBuilder().path(Paths.DIR);
 		DirectoryList dl = new DirectoryList();
-		for (String name : lister.getSubdirectories())
-			dl.dirs.add(new Directory(name));
+		for (File root : lister.getRoots())
+			dl.dirs.add(new DirectoryEntry(root, ub));
 		return dl;
+	}
+
+	@Override
+	public Response dirs(String path, UriInfo ui) {
+		String[] bits = path.replaceFirst("^/+", "").split("/");
+		UriBuilder ub = ui.getBaseUriBuilder().path(Paths.DIR);
+		DirectoryList dl = new DirectoryList();
+		if (bits == null || bits.length == 0) {
+			for (File root : lister.getRoots())
+				dl.dirs.add(new DirectoryEntry(root, ub));
+		} else {
+			try {
+				File base = lister.getRoot(bits[0]);
+				for (File f : lister.getListing(base, bits))
+					dl.dirs.add(new DirectoryEntry(f, base, ub));
+			} catch (IOException e) {
+				return status(NOT_FOUND).type("text/plain")
+						.entity(e.getMessage()).build();
+			}
+		}
+		return ok(dl, JSON).build();
+	}
+
+	@Override
+	public Response tree(String id, UriInfo ui) {
+		File base;
+		List<File> results;
+		try {
+			if ("#".equals(id)) {
+				base = null;
+				results = new ArrayList<>(lister.getRoots());
+			} else {
+				String[] bits = id.replaceFirst("^/+", "").split("/");
+				base = lister.getRoot(bits[0]);
+				results = lister.getListing(base, bits);
+			}
+		} catch (IOException e) {
+			return status(NOT_FOUND).type("text/plain").entity(e.getMessage())
+					.build();
+		}
+		Collections.sort(results, new Comparator<File>() {
+			@Override
+			public int compare(File o1, File o2) {
+				return o1.getName().compareTo(o2.getName());
+			}
+		});
+		JSONArray out = new JSONArray();
+		for (File f : results) {
+			JSONObject obj = new JSONObject();
+			if (base == null) {
+				obj.put("id", f.getName());
+				obj.put("parent", "#");
+				obj.put("text", "Instrument: " + f.getName());
+				obj.put("children", true);
+				obj.put("icon", "images/instrument.png");
+			} else {
+				obj.put("id", id + "/" + f.getName());
+				obj.put("parent", id);
+				obj.put("text", f.getName());
+				if (f.isDirectory()) {
+					obj.put("children", true);
+					obj.put("icon", "images/directory.png");
+				} else {
+					obj.put("state", new JSONObject().put("disabled", true));
+					obj.put("icon", "images/file.png");
+				}
+			}
+			out.put(obj);
+		}
+		return Response.ok(out, JSON).build();
 	}
 
 	private static final Comparator<ArchiveTask> taskComparator = new Comparator<ArchiveTask>() {
@@ -103,7 +191,14 @@ public class Application implements Interface {
 		ArchiveTaskList atl = new ArchiveTaskList();
 		atl.tasks = new ArrayList<>();
 		for (String id : tasks.list())
-			atl.tasks.add(tasks.describeTask(id, ub));
+			try {
+				atl.tasks.add(tasks.describeTask(id, ub));
+			} catch (NotFoundException e) {
+				/*
+				 * Ignore tasks that have just been squelched; we can pretend
+				 * they just don't exist for our purposes.
+				 */
+			}
 		sort(atl.tasks, taskComparator);
 		return atl;
 	}
@@ -119,7 +214,7 @@ public class Application implements Interface {
 			 * This case is normal enough that we don't want an exception in the
 			 * log.
 			 */
-			return Response.status(NOT_FOUND).build();
+			return status(NOT_FOUND).build();
 		}
 	}
 
@@ -128,56 +223,60 @@ public class Application implements Interface {
 	public Response createTask(ArchiveTask proposedTask, UriInfo ui) {
 		if (proposedTask == null)
 			throw new BadRequestException("bad task");
+		proposedTask.validate();
 
-		User u0 = proposedTask.submitter;
-		if (u0 == null)
-			throw new BadRequestException("no user specified");
-		if (u0.url == null)
-			throw new BadRequestException("no user url");
-		User user = seek.getUser(u0.url);
-
-		Assay a0 = proposedTask.assay;
-		Study s0 = proposedTask.study;
-		if (a0 == null && s0 == null)
-			throw new BadRequestException("no assay or study specified");
-		if (a0 != null && s0 != null)
-			throw new BadRequestException("must not specify both assay and study");
-		if (a0 != null && a0.url == null)
-			throw new BadRequestException("no assay url");
-		if (s0 != null && s0.url == null)
-			throw new BadRequestException("no study url");
-
-		List<Directory> d0 = proposedTask.directory;
-		if (d0 == null)
-			throw new BadRequestException("bad directory");
-		List<String> dirs = lister.getSubdirectories(d0);
+		List<String> dirs = lister.getSubdirectories(proposedTask.directory);
 		if (dirs.isEmpty())
 			throw new BadRequestException(
 					"need at least one directory to archive");
 
-		String id;
-		if (a0 != null)
-			id = createTask(user, a0, dirs);
+		String notes = proposedTask.notes;
+		if (notes == null)
+			notes = "";
 		else
-			id = createTask(user, s0, dirs);
+			notes = notes.trim();
+
+		String id;
+		try {
+			id = createTask(proposedTask.submitter, proposedTask.project,
+					dirs.get(0), notes);
+		} catch (IOException e) {
+			return Response.status(BAD_REQUEST).entity(e.getMessage()).build();
+		}
+
 		log.info("created task " + id + " to archive " + dirs.get(0));
 		UriBuilder ub = ui.getAbsolutePathBuilder().path("{id}");
 		return created(ub.build(id)).entity(tasks.describeTask(id, ub))
 				.type("application/json").build();
 	}
 
-	private String createTask(User user, Assay a0, List<String> dirs) {
+	private String createTask(User user, Project project, String dir,
+			String notes) throws IOException {
+		user = infoSource.getUser(user.url);
+		project = infoSource.getProject(project.url);
+		log.info("creating task for " + user.name + " to archive " + dir
+				+ " for project " + project.name);
+		return tasks.newTask(user, project, dir, notes);
+	}
+
+	@SuppressWarnings("unused")
+	private String createTask(User user, Assay a0, List<String> dirs,
+			Project project, String notes) {
+		project = infoSource.getProject(project.url);
 		Assay assay = seek.getAssay(a0.url);
 		log.info("creating task for " + user.name + " to work on assay "
 				+ assay.url + " (" + assay.name + ")");
-		return tasks.newTask(user, assay, dirs);
+		return tasks.newTask(user, assay, dirs, project, notes);
 	}
 
-	private String createTask(User user, Study s0, List<String> dirs) {
+	@SuppressWarnings("unused")
+	private String createTask(User user, Study s0, List<String> dirs,
+			Project project, String notes) {
+		project = infoSource.getProject(project.url);
 		Study study = seek.getStudy(s0.url);
 		log.info("creating task for " + user.name + " to work on study "
 				+ study.url + " (" + study.name + ")");
-		return tasks.newTask(user, study, dirs);
+		return tasks.newTask(user, study, dirs, project, notes);
 	}
 
 	@Override
@@ -188,6 +287,9 @@ public class Application implements Interface {
 			tasks.deleteTask(id);
 		} catch (InterruptedException | ExecutionException e) {
 			throw new InternalServerErrorException("problem when cancelling task", e);
+		} catch (NotFoundException e) {
+			// No exception logging; it's just already gone
+			return status(NOT_FOUND).build();
 		}
 		return seeOther(ui.getBaseUriBuilder().path("tasks").build()).build();
 	}

@@ -15,14 +15,12 @@ import java.nio.file.FileAlreadyExistsException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
 import manchester.synbiochem.datacapture.OpenBISIngester.IngestionResult;
-import manchester.synbiochem.datacapture.SeekConnector.Study;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
@@ -181,24 +179,16 @@ public class ArchiverTask implements Callable<URL> {
 		if (isCancelled())
 			return null;
 
-		setState("registering");
-
-		if (metadata.getExperiment() == null)
-			makeAssay(ingestion);
-
-		setState("meta-ing");
+		setState("recording");
 
 		extractMetadata(ingestion);
 		if (isCancelled())
 			return null;
 
-		setState("bagging-it");
-		bagItUp();
-
 		setState("finishing");
 
 		saveJsonManifest();
-		return getCreatedAssetLocation(ingestion);
+		return ingestion.dataRoot;
 	}
 
 	private File saveJsonManifest() {
@@ -289,10 +279,6 @@ public class ArchiverTask implements Callable<URL> {
 		return null;
 	}
 
-	protected void makeAssay(IngestionResult ingestion) {
-		// Do nothing in this class; subclass might implement
-	}
-
 	static URI resolveToURI(URI base, String part) {
 		StringBuilder sb = new StringBuilder(part.length());
 		for (char ch : part.toCharArray()) {
@@ -361,27 +347,6 @@ public class ArchiverTask implements Callable<URL> {
 		}
 	}
 
-	// Construct the actual archive of the data. NOT YET DONE
-	protected void bagItUp() {
-		try {
-			// TODO Need to actually do the build of the bagit
-		} finally {
-
-		}
-	}
-
-	/**
-	 * Get the location of the asset that has been created to correspond to this
-	 * upload. This URL is <i>only</i> ever used to report to the user.
-	 * 
-	 * @param result
-	 *            The information from OpenBIS.
-	 * @return the URL of the asset, or <tt>null</tt> if no such asset was made.
-	 */
-	protected URL getCreatedAssetLocation(IngestionResult result) {
-		return result.dataRoot;
-	}
-
 	/**
 	 * A name/file pair.
 	 * 
@@ -431,174 +396,5 @@ public class ArchiverTask implements Callable<URL> {
 
 	public void setJavaTask(Future<?> result) {
 		javaTask = result;
-	}
-}
-
-class SeekAwareArchiverTask extends ArchiverTask {
-	/**
-	 * The real content type of the CSV files we generate. Yes, this is actually
-	 * tab-separated; that's actually more portable.
-	 */
-	private static final String CSV_CONTENT_TYPE = "text/tab-separated-values";
-	final SeekConnector seek;
-	private volatile int linkCount;
-
-	public SeekAwareArchiverTask(MetadataRecorder metadata,
-			File archiveRoot, File metastoreRoot, URI cifsRoot,
-			File directoryToArchive, SeekConnector seek,
-			OpenBISIngester ingester, InformationSource infoSource) {
-		super(metadata, archiveRoot, metastoreRoot, cifsRoot,
-				directoryToArchive, ingester, infoSource);
-		this.seek = seek;
-	}
-
-	private String titleOfLinkEntry(Entry ent) {
-		String tail = ent.getName().replaceFirst(".*/", "");
-		log.info("chopped " + ent.getName() + " to " + tail);
-		return "Experimental Results: " + tail;
-	}
-
-	private String describeManifest(IngestionResult ingestion) {
-		String instrument = info.getMachineName(directoryToArchive);
-		String time = ISO8601.format(new Date(start));
-		String date = HUMAN_READABLE.format(new Date(start));
-		String description = "<i>CSV document</i> describing the manifest of "
-				+ "files copied from instrument <i>" + instrument
-				+ "</i> to the Synology storage at timestamp <abbr title=\""
-				+ time + ">" + date + "</abbr>.";
-		if (ingestion != null)
-			description += "\n\n" + "The data is also <a href=\""
-					+ ingestion.dataRoot + "\">available in OpenBIS</a>.";
-		return description;
-	}
-
-	// Turn off links; combination of brokenness in SEEK and OpenBIS
-	private static boolean USE_SEEK_LINKS = false;
-
-	/** Create an asset in SEEK corresponding to this upload. */
-	@Override
-	protected URL getCreatedAssetLocation(IngestionResult ingestion) {
-		try {
-			for (Entry ent : entries) {
-				if (USE_SEEK_LINKS && ingestion != null)
-					putLinkToFileInSeek(ent, ingestion);
-				linkCount++;
-			}
-		} catch (URISyntaxException e) {
-			log.warn("unexpected failure to construct URI into OpenBIS", e);
-		} catch (RuntimeException e) {
-			log.warn("failed to notify SEEK about file; skipping remaining links");
-		} finally {
-			linkCount = metaCount;
-		}
-
-		// Finalize the metadata NOW
-		metadata.get();
-		String description = describeManifest(ingestion);
-		return seek.uploadFileAsset(metadata.getUser(),
-				metadata.getExperiment(), "metadata.tsv", description,
-				"Experimental Results Manifest", CSV_CONTENT_TYPE,
-				metadata.getCSV());
-	}
-
-	private void putLinkToFileInSeek(Entry ent, IngestionResult ingestion)
-			throws URISyntaxException {
-		String title = titleOfLinkEntry(ent);
-		String description = describeLinkEntry(ent);
-		URI openBisURI = resolveToURI(ingestion.dataRoot, ent.getName());
-		URL seekURL = seek.linkFileAsset(metadata.getUser(),
-				metadata.getExperiment(), description, title, openBisURI);
-		metadata.setSeekLocation(ent, seekURL);
-	}
-
-	private String describeLinkEntry(Entry ent) {
-		Date ts = new Date(start);
-		return "File copied from <i>" + ent.getFile()
-				+ "</i> of (presumed) type <i>"
-				+ metadata.getFileType(ent.getFile())
-				+ "</i> and generated by <i>"
-				+ info.getMachineName(directoryToArchive)
-				+ "</i>; this upload was done at <abbr title=\""
-				+ ISO8601.format(ts) + "\">" + HUMAN_READABLE.format(ts)
-				+ "</abbr>.\n\n<b>Links</b>\n<a href=\""
-				+ resolveToURI(cifsRoot, ent.getName())
-				+ "\">Data Store (CIFS)</a>";
-	}
-
-	@Override
-	public Double getProgress() {
-		if (done)
-			return 1.0;
-		int files = fileCount, metas = metaCount, copies = copyCount, links = linkCount;
-		if (files == 0)
-			return null;
-		return (metas + copies + links) / (files * 3.0);
-	}
-}
-
-class AssayCreatingArchiverTask extends SeekAwareArchiverTask {
-	final Study study;
-
-	public AssayCreatingArchiverTask(Study study, MetadataRecorder metadata,
-			File archiveRoot, File metastoreRoot, URI cifsRoot,
-			File directoryToArchive, SeekConnector seek,
-			OpenBISIngester ingester, InformationSource infoSource) {
-		super(metadata, archiveRoot, metastoreRoot, cifsRoot,
-				directoryToArchive, seek, ingester, infoSource);
-		this.study = study;
-	}
-
-	private static final String ASSAY_DESCRIPTION_TEMPLATE = "Capture of data "
-			+ "relating to '<i>%s</i>' from the %s instrument in the <i>%s</i>"
-			+ " project context at <abbr title=\"%s\">%s</abbr>.\n\n<b>Links</b>\n";
-	private static final String ASSAY_EXPLINK_TEXT = "The OpenBIS Experiment";
-	private static final String ASSAY_DSLINK_TEXT = "The OpenBIS DataSet";
-
-	private String describeAssay(String title, IngestionResult ingestion) {
-		StringBuilder buffer = new StringBuilder();
-		Date timestamp = new Date(start);
-		buffer.append(format(ASSAY_DESCRIPTION_TEMPLATE, title, machine,
-				project, ISO8601.format(timestamp),
-				HUMAN_READABLE.format(timestamp)));
-		if (ingestion == null) {
-			buffer.append(ASSAY_EXPLINK_TEXT).append(": <em>unknown</em>\n")
-					.append(ASSAY_DSLINK_TEXT).append(": <em>unknown</em>");
-		} else {
-			buffer.append("<a href=\"").append(ingestion.experimentURL)
-					.append("\">").append(ASSAY_EXPLINK_TEXT)
-					.append("</a> (permlink)\n<a href=\"")
-					.append(ingestion.dataRoot).append("\">")
-					.append(ASSAY_DSLINK_TEXT).append("</a> (permlink)");
-		}
-		return buffer.toString();
-	}
-
-	/*
-	 * Not the greatest way of creating a title, but not too problematic
-	 * either.
-	 */
-	private String getAssayTitle(String directoryName) {
-		String title = directoryName.replace("_", " ");
-		if (title.matches("^\\d+ \\d+ \\d+ .*$")) {
-			// If the leading part looks like a date, make it look more like a date
-			String[] parts = title.split(" +", 4);
-			title = parts[0] + "/" + parts[1] + "/" + parts[2] + " " + parts[3];
-		}
-		return title;
-	}
-
-	@Override
-	protected void makeAssay(IngestionResult ingestion) {
-		String directoryName = directoryToArchive.getAbsolutePath()
-				.replaceFirst("/+$", "").replaceFirst(".*/", "")
-				.replace("_", " ");
-		String description = describeAssay(directoryName, ingestion);
-		String title = getAssayTitle(directoryName);
-
-		URL url = seek.createExperimentalAssay(metadata.getUser(), study,
-				description, title);
-
-		log.info("created assay at " + url);
-		metadata.setExperiment(seek.getAssay(url));
 	}
 }

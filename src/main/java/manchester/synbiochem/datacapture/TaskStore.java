@@ -34,7 +34,6 @@ import javax.ws.rs.core.UriBuilder;
 import manchester.synbiochem.datacapture.Interface.ArchiveTask;
 import manchester.synbiochem.datacapture.SeekConnector.Assay;
 import manchester.synbiochem.datacapture.SeekConnector.Project;
-import manchester.synbiochem.datacapture.SeekConnector.Study;
 import manchester.synbiochem.datacapture.SeekConnector.User;
 
 import org.apache.commons.logging.Log;
@@ -153,38 +152,6 @@ public class TaskStore {
 		return storeTask(d, md, at, submit(at));
 	}
 
-	public String newTask(SeekConnector.User user, SeekConnector.Assay assay,
-			List<String> dirs, Project project, String notes) {
-		if (user == null || user.url == null)
-			throw new IllegalArgumentException("need a user with a URL");
-		if (assay == null || assay.url == null)
-			throw new IllegalArgumentException("need an assay with a URL");
-		File d = existingDirectory(dirs);
-
-		MetadataRecorder md = new MetadataRecorder(tika, project, notes);
-		md.setUser(user);
-		md.setExperiment(assay);
-		ArchiverTask at = new SeekAwareArchiverTask(md, archRoot, metaRoot,
-				cifsRoot, d, seek, ingester, infoSource);
-		return storeTask(d, md, at, submit(at));
-	}
-
-	public String newTask(User user, Study study, List<String> dirs,
-			Project project, String notes) {
-		if (user == null || user.url == null)
-			throw new IllegalArgumentException("need a user with a URL");
-		if (study == null || study.url == null)
-			throw new IllegalArgumentException("need a study with a URL");
-		File d = existingDirectory(dirs);
-
-		MetadataRecorder md = new MetadataRecorder(tika, project, notes);
-		md.setUser(user);
-		md.setExperiment(study);
-		ArchiverTask at = new AssayCreatingArchiverTask(study, md, archRoot,
-				metaRoot, cifsRoot, d, seek, ingester, infoSource);
-		return storeTask(d, md, at, submit(at));
-	}
-
 	private String storeTask(File d, MetadataRecorder md, ArchiverTask at,
 			Future<URL> taskResult) {
 		List<String> dirs = singletonList(d.getAbsolutePath());
@@ -198,24 +165,6 @@ public class TaskStore {
 			at.setJavaTask(taskResult);
 		}
 		return key;
-	}
-
-	/**
-	 * Get the first existing directory from the list.
-	 * 
-	 * @param dirs
-	 *            List of names of directories to look at.
-	 * @return The directory
-	 * @throws WebApplicationException
-	 *             If no suitable directory is present.
-	 */
-	private File existingDirectory(List<String> dirs) {
-		for (String d : dirs) {
-			File dir = new File(d);
-			if (dir.exists())
-				return dir;
-		}
-		throw new BadRequestException("no such directory");
 	}
 
 	/**

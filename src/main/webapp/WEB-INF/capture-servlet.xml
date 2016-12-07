@@ -34,7 +34,6 @@
 
 	<bean name="app" class="manchester.synbiochem.datacapture.Application" />
 	<bean name="lister" class="manchester.synbiochem.datacapture.DirectoryLister" />
-	<bean name="seek" class="manchester.synbiochem.datacapture.SeekConnector" />
 	<bean name="taskStore" class="manchester.synbiochem.datacapture.TaskStore" />
 	<bean name="info" class="manchester.synbiochem.datacapture.InformationSource" />
 	<bean name="ingester" class="manchester.synbiochem.datacapture.OpenBISIngester" />

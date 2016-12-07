@@ -42,8 +42,6 @@ public interface Interface {
 		String ROOT = "/";
 		String USERS = "users";
 		String PROJECTS = "projects";
-		String STUDIES = "studies";
-		String ASSAYS = "assays";
 		String DIR = "dir";
 		String TREE = "tree";
 		String TASKS = "tasks";
@@ -67,16 +65,6 @@ public interface Interface {
 	@Path(Paths.PROJECTS)
 	@Produces(JSON)
 	ProjectList projects();
-
-	@GET
-	@Path(Paths.STUDIES)
-	@Produces(JSON)
-	StudyList studies();
-	
-	@GET
-	@Path(Paths.ASSAYS)
-	@Produces(JSON)
-	AssayList assays();
 
 	@GET
 	@Path(Paths.DIR)

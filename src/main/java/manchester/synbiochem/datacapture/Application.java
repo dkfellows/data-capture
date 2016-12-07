@@ -44,8 +44,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 @RolesAllowed("ROLE_USER")
 public class Application implements Interface {
 	@Autowired
-	SeekConnector seek;
-	@Autowired
 	TaskStore tasks;
 	@Autowired
 	DirectoryLister lister;
@@ -81,20 +79,6 @@ public class Application implements Interface {
 		ProjectList pl = new ProjectList();
 		pl.projects = new ArrayList<>(infoSource.getProjects());
 		return pl;
-	}
-
-	@Override
-	public StudyList studies() {
-		StudyList sl = new StudyList();
-		sl.studies = new ArrayList<>(seek.getStudies());
-		return sl;
-	}
-
-	@Override
-	public AssayList assays() {
-		AssayList al = new AssayList();
-		al.assays = new ArrayList<>(seek.getAssays());
-		return al;
 	}
 
 	@Override

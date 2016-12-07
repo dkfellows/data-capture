@@ -62,8 +62,6 @@ public class TaskStore {
 	@Autowired
 	AsyncTaskExecutor executor;
 	@Autowired
-	SeekConnector seek;
-	@Autowired
 	OpenBISIngester ingester;
 	@Autowired
 	InformationSource infoSource;

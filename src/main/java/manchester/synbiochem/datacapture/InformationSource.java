@@ -12,10 +12,10 @@ import java.util.Map;
 
 import javax.ws.rs.BadRequestException;
 
-import manchester.synbiochem.datacapture.SeekConnector.Assay;
-import manchester.synbiochem.datacapture.SeekConnector.Project;
-import manchester.synbiochem.datacapture.SeekConnector.Study;
-import manchester.synbiochem.datacapture.SeekConnector.User;
+import manchester.synbiochem.datacapture.Interface.Assay;
+import manchester.synbiochem.datacapture.Interface.Project;
+import manchester.synbiochem.datacapture.Interface.Study;
+import manchester.synbiochem.datacapture.Interface.User;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

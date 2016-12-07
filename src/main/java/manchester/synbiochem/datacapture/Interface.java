@@ -4,7 +4,10 @@ import static manchester.synbiochem.datacapture.Constants.JSON;
 import static org.apache.commons.codec.digest.DigestUtils.md5Hex;
 
 import java.io.File;
+import java.io.Serializable;
 import java.net.URI;
+import java.net.URL;
+import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -31,11 +34,6 @@ import javax.xml.bind.annotation.XmlSchemaType;
 import javax.xml.bind.annotation.XmlSeeAlso;
 import javax.xml.bind.annotation.XmlType;
 
-import manchester.synbiochem.datacapture.SeekConnector.Assay;
-import manchester.synbiochem.datacapture.SeekConnector.Project;
-import manchester.synbiochem.datacapture.SeekConnector.Study;
-import manchester.synbiochem.datacapture.SeekConnector.User;
-
 public interface Interface {
 	/** Common elements of API URI path names. */
 	interface Paths {
@@ -46,6 +44,8 @@ public interface Interface {
 		String TREE = "tree";
 		String TASKS = "tasks";
 	}
+
+	static final Charset UTF8 = Charset.forName("UTF-8");
 	@GET
 	@Path(Paths.ROOT)
 	@Produces("text/plain")
@@ -248,11 +248,11 @@ public interface Interface {
 		@XmlSchemaType(name = "dateTime")
 		public String endTime;
 		@XmlElement
-		public SeekConnector.User submitter;
+		public User submitter;
 		@XmlElement
-		public SeekConnector.Assay assay;
+		public Assay assay;
 		@XmlElement
-		public SeekConnector.Study study;
+		public Study study;
 		@XmlElement
 		public List<DirectoryEntry> directory = new ArrayList<>();
 		@XmlElement(name = "created-asset")
@@ -260,7 +260,7 @@ public interface Interface {
 		@XmlElement(name = "created-openbis-experiment")
 		public URI createdExperiment;
 		@XmlElement
-		public SeekConnector.Project project;
+		public Project project;
 		@XmlElement
 		public String notes;
 
@@ -278,6 +278,83 @@ public interface Interface {
 			if (directory == null)
 				throw new BadRequestException("bad directory");
 		}
+	}
+
+	@SuppressWarnings("serial")
+	@XmlRootElement(name = "assay")
+	@XmlType(propOrder = {})
+	public static class Assay implements Serializable {
+		@XmlElement
+		public String name;
+		@XmlElement
+		public Integer id;
+		@XmlElement(required = true)
+		@XmlSchemaType(name = "anyUri")
+		public URL url;
+		@XmlElement(name = "project-name")
+		String projectName;
+		@XmlElement(name = "project-url")
+		@XmlSchemaType(name = "anyUri")
+		public URL projectUrl;
+		@XmlElement(name = "investigation-name")
+		String investigationName;
+		@XmlElement(name = "investigation-url")
+		@XmlSchemaType(name = "anyUri")
+		public URL investigationUrl;
+		@XmlElement(name = "study-name")
+		String studyName;
+		@XmlElement(name = "study-url")
+		@XmlSchemaType(name = "anyUri")
+		public URL studyUrl;
+	}
+
+	@SuppressWarnings("serial")
+	@XmlRootElement(name = "project")
+	@XmlType(propOrder = {})
+	public static class Project implements Serializable {
+		@XmlElement
+		public String name;
+		@XmlElement
+		public Integer id;
+		@XmlElement(required = true)
+		@XmlSchemaType(name = "anyUri")
+		public URL url;
+	}
+
+	@SuppressWarnings("serial")
+	@XmlRootElement(name = "study")
+	@XmlType(propOrder = {})
+	public static class Study implements Serializable {
+		@XmlElement
+		public String name;
+		@XmlElement
+		public Integer id;
+		@XmlElement(required = true)
+		@XmlSchemaType(name = "anyUri")
+		public URL url;
+		@XmlElement(name = "project-name")
+		String projectName;
+		@XmlElement(name = "project-url")
+		@XmlSchemaType(name = "anyUri")
+		public URL projectUrl;
+		@XmlElement(name = "investigation-name")
+		String investigationName;
+		@XmlElement(name = "investigation-url")
+		@XmlSchemaType(name = "anyUri")
+		public URL investigationUrl;
+	}
+
+	@SuppressWarnings("serial")
+	@XmlRootElement(name = "user")
+	@XmlType(propOrder = {})
+	public static class User implements Serializable {
+		@XmlElement
+		public String name;
+		@XmlElement
+		public Integer id;
+		@XmlElement(required = true)
+		@XmlSchemaType(name = "anyUri")
+		public URL url;
 	}
 }
 

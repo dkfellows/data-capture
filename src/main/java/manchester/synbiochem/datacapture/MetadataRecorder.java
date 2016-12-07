@@ -41,10 +41,10 @@ import java.util.Map;
 import java.util.TimeZone;
 
 import manchester.synbiochem.datacapture.ArchiverTask.Entry;
-import manchester.synbiochem.datacapture.SeekConnector.Assay;
-import manchester.synbiochem.datacapture.SeekConnector.Project;
-import manchester.synbiochem.datacapture.SeekConnector.Study;
-import manchester.synbiochem.datacapture.SeekConnector.User;
+import manchester.synbiochem.datacapture.Interface.Assay;
+import manchester.synbiochem.datacapture.Interface.Project;
+import manchester.synbiochem.datacapture.Interface.Study;
+import manchester.synbiochem.datacapture.Interface.User;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;

@@ -32,9 +32,9 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.UriBuilder;
 
 import manchester.synbiochem.datacapture.Interface.ArchiveTask;
-import manchester.synbiochem.datacapture.SeekConnector.Assay;
-import manchester.synbiochem.datacapture.SeekConnector.Project;
-import manchester.synbiochem.datacapture.SeekConnector.User;
+import manchester.synbiochem.datacapture.Interface.Assay;
+import manchester.synbiochem.datacapture.Interface.Project;
+import manchester.synbiochem.datacapture.Interface.User;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -139,7 +139,7 @@ public class TaskStore {
 		return d;
 	}
 
-	public String newTask(SeekConnector.User user, Project project, String dir,
+	public String newTask(User user, Project project, String dir,
 			String notes) throws IOException {
 		File d = existingDirectory(dir);
 

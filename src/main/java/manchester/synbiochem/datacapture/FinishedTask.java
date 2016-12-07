@@ -7,8 +7,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 
-import manchester.synbiochem.datacapture.SeekConnector.Assay;
-import manchester.synbiochem.datacapture.SeekConnector.User;
+import manchester.synbiochem.datacapture.Interface.Assay;
+import manchester.synbiochem.datacapture.Interface.User;
 
 public class FinishedTask implements TaskStore.Task, Serializable {
 	private static final long serialVersionUID = 3774514312844079068L;

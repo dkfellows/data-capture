@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
-import manchester.synbiochem.datacapture.SeekConnector.Assay;
-import manchester.synbiochem.datacapture.SeekConnector.User;
+import manchester.synbiochem.datacapture.Interface.Assay;
+import manchester.synbiochem.datacapture.Interface.User;
 
 class ActiveTask implements TaskStore.Task {
 	ActiveTask(String key, MetadataRecorder md, List<String> dirs,
